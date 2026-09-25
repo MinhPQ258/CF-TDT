@@ -1,0 +1,30 @@
+# Cấu hình Supabase CLI cho môi trường local (supabase start). Các khóa không liệt kê dùng mặc định.
+project_id = "coffee-tdt"
+
+[api]
+enabled = true
+port = 54321
+# App gọi mọi hàm qua schema api
+schemas = ["public", "graphql_public", "api"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+# Không đăng ký công khai — quản trị cấp tài khoản
+enable_signup = false
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = false
+# Email ảo username@coffee.internal: không gửi xác nhận
+enable_confirmations = false
