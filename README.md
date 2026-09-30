@@ -61,7 +61,8 @@ Mật khẩu chung: `coffee123` (chỉ cho máy local). Xóa dữ liệu làm l�
 2. **Settings → API → Exposed schemas: thêm `api`.**
 3. Authentication: tắt sign-up công khai, tắt Confirm email, mật khẩu tối thiểu 8.
 4. Tạo admin đầu tiên theo `supabase/deploy/seed_first_admin.sql`.
-5. Sau khi sửa migration: `npm run db:bundle` để sinh lại file gộp (CI kiểm file gộp khớp migrations).
+5. **DB đã chạy bản cũ** (11 migration, trước 30/09): chạy thêm `supabase/deploy/upgrade_012_vote_options.sql`. Kiểm tra: https://cf-tdt.vercel.app/api/health → `migrations` đều `true`.
+6. Sau khi sửa migration: `npm run db:bundle` để sinh lại file gộp (CI kiểm file gộp khớp migrations).
 
 Với Supabase CLI: `supabase link --project-ref <ref>` rồi `supabase db push` dùng thẳng `supabase/migrations`.
 
