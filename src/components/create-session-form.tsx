@@ -55,27 +55,30 @@ function LabelList({ label, hint, items, onChange, placeholder, max, chip }: {
   );
 }
 
-/** Giờ VN hiện tại + phút, dạng HH:mm (tối đa 23:59) */
-function vnNowPlus(min: number): string {
-  const t = new Date(Date.now() + min * 60_000);
-  const hm = t.toLocaleTimeString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" });
-  const nowHm = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" });
-  return min > 0 && hm < nowHm ? "23:59" : hm; // qua nửa đêm → giữ trong ngày
+/** Thời điểm (ISO hoặc Date) → "YYYY-MM-DDTHH:mm" theo giờ VN */
+export function vnLocalInput(t: string | Date): string {
+  const d = typeof t === "string" ? new Date(t) : t;
+  const date = d.toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+  const time = d.toLocaleTimeString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" });
+  return `${date}T${time}`;
 }
+
+/** "YYYY-MM-DDTHH:mm" → "HH:mm dd/mm/yyyy" */
+const showDateTime = (v: string) => (v ? `${v.slice(11, 16)} ${v.slice(0, 10).split("-").reverse().join("/")}` : "hh:mm dd/mm/yyyy");
 
 const DEFAULT_NAME = "Pha cà phê";
 
-/** Ô ngày hiển thị dd/mm/yyyy; bấm vào mở bộ chọn ngày gốc của trình duyệt */
-function DateField({ id, value, min, onChange }: { id: string; value: string; min: string; onChange: (v: string) => void }) {
+/** Ô giờ + ngày hiển thị "hh:mm dd/mm/yyyy"; bấm vào mở bộ chọn ngày giờ của trình duyệt */
+function DateTimeField({ id, value, min, onChange }: { id: string; value: string; min?: string; onChange: (v: string) => void }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div className="relative">
-      <div aria-hidden className="flex min-h-11 w-full items-center justify-between rounded-lg border border-line bg-surface px-3 text-base">
-        <span>{value ? value.split("-").reverse().join("/") : "dd/mm/yyyy"}</span>
-        <svg viewBox="0 0 24 24" className="size-5 text-muted" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+      <div aria-hidden className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 text-base tabular-nums">
+        <span className="whitespace-nowrap">{showDateTime(value)}</span>
+        <svg viewBox="0 0 24 24" className="size-5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
       </div>
-      <input ref={ref} id={id} type="date" min={min} value={value} required
-        onChange={(e) => onChange(e.target.value)}
+      <input ref={ref} id={id} type="datetime-local" min={min} value={value} required
+        onChange={(e) => e.target.value && onChange(e.target.value.slice(0, 16))}
         onClick={() => { try { ref.current?.showPicker(); } catch { /* trình duyệt không hỗ trợ */ } }}
         className="absolute inset-0 size-full cursor-pointer opacity-0" />
     </div>
@@ -84,13 +87,13 @@ function DateField({ id, value, min, onChange }: { id: string; value: string; mi
 
 /** Dữ liệu đợt có sẵn khi chỉnh sửa */
 export interface SessionFormValues {
-  id: string; name: string; service_date: string; opens: string; cutoff: string;
+  /** opens / cutoff: "YYYY-MM-DDTHH:mm" giờ VN */
+  id: string; name: string; opens: string; cutoff: string;
   styles: string[]; addons: string[]; allow_cups: boolean;
 }
 
 /** Tạo đợt; truyền `editing` thì thành màn Chỉnh sửa (cùng giao diện) */
-export function CreateSessionForm({ today, doneBase, editing, doneHref }: {
-  today: string;
+export function CreateSessionForm({ doneBase, editing, doneHref }: {
   /** tạo xong chuyển tới `${doneBase}?s=<id>` */
   doneBase: string;
   editing?: SessionFormValues;
@@ -99,20 +102,22 @@ export function CreateSessionForm({ today, doneBase, editing, doneHref }: {
 }) {
   const router = useRouter();
   const [name, setName] = useState(editing?.name ?? DEFAULT_NAME);
-  const [date, setDate] = useState(editing?.service_date ?? today);
-  const [opens, setOpens] = useState(() => editing?.opens ?? vnNowPlus(0));
-  const [cutoff, setCutoff] = useState(() => editing?.cutoff ?? vnNowPlus(60));
+  const [opens, setOpens] = useState(() => editing?.opens ?? vnLocalInput(new Date()));
+  const [cutoff, setCutoff] = useState(() => editing?.cutoff ?? vnLocalInput(new Date(Date.now() + 60 * 60_000)));
   const [styles, setStyles] = useState<string[]>(editing?.styles ?? ["Espresso", "Latte"]);
   const [addons, setAddons] = useState<string[]>(editing?.addons ?? ["Sữa đặc", "Đường", "Đá"]);
   const [allowCups, setAllowCups] = useState(editing?.allow_cups ?? true);
-  const minDate = editing && editing.service_date < today ? editing.service_date : today;
   const [state, setState] = useState<ActionState<VoteSession>>({});
   const [pending, start] = useTransition();
 
   function submit() {
     start(async () => {
       // Giờ pha = giờ chốt
-      const base = { name: name.trim() || DEFAULT_NAME, service_date: date, opens_time: opens, cutoff_time: cutoff, brew_time: cutoff, styles, addons, allow_cups: allowCups };
+      // Ngày của đợt = ngày chốt
+      const base = {
+        name: name.trim() || DEFAULT_NAME, service_date: cutoff.slice(0, 10), cutoff_time: cutoff.slice(11, 16), brew_time: cutoff.slice(11, 16),
+        opens_date: opens.slice(0, 10), opens_time: opens.slice(11, 16), styles, addons, allow_cups: allowCups,
+      };
       const r = editing
         ? await updateVoteSessionAction({ ...base, session_id: editing.id })
         : await createVoteSessionAction({ ...base, publish: true, copy_from: null });
@@ -133,20 +138,15 @@ export function CreateSessionForm({ today, doneBase, editing, doneHref }: {
         <Card>
           <h2 className="mb-3 text-lg font-semibold">{editing ? "Chỉnh sửa đợt pha" : "Tạo đợt pha"}</h2>
           <FormMessage state={state} loginNext={doneBase} />
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-            <Field label="Tên đợt" htmlFor="v-name" error={state.fieldErrors?.name}>
-              <Input id="v-name" value={name} maxLength={100} placeholder={DEFAULT_NAME} onChange={(e) => setName(e.target.value)} />
+          <Field label="Tên đợt" htmlFor="v-name" error={state.fieldErrors?.name}>
+            <Input id="v-name" value={name} maxLength={100} placeholder={DEFAULT_NAME} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <div className="mt-3 grid gap-3 sm:max-w-xs">
+            <Field label="Giờ mở" htmlFor="v-open" error={state.fieldErrors?.opens_time}>
+              <DateTimeField id="v-open" value={opens} onChange={setOpens} />
             </Field>
-            <Field label="Ngày" htmlFor="v-date" required error={state.fieldErrors?.service_date}>
-              <DateField id="v-date" min={minDate} value={date} onChange={setDate} />
-            </Field>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <Field label="Giờ mở" htmlFor="v-open">
-              <Input id="v-open" type="time" value={opens} onChange={(e) => setOpens(e.target.value)} />
-            </Field>
-            <Field label="Giờ chốt" htmlFor="v-cut" required error={state.fieldErrors?.cutoff_time}>
-              <Input id="v-cut" type="time" value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
+            <Field label="Giờ chốt" htmlFor="v-cut" required error={state.fieldErrors?.cutoff_time ?? state.fieldErrors?.service_date}>
+              <DateTimeField id="v-cut" value={cutoff} min={opens} onChange={setCutoff} />
             </Field>
           </div>
         </Card>
@@ -170,7 +170,7 @@ export function CreateSessionForm({ today, doneBase, editing, doneHref }: {
         <p className="mb-2 text-sm font-semibold text-muted">Người dùng sẽ thấy trên điện thoại</p>
         <div className="sticky top-4 space-y-2.5 rounded-[22px] border-2 border-ink bg-bg px-3 py-3.5">
           <div className="flex items-baseline justify-between"><strong>{name.trim() || DEFAULT_NAME}</strong><span className="text-xs font-semibold text-ok">Đang mở</span></div>
-          <p className="text-xs text-muted">Chốt {cutoff || "--:--"}{cutoff ? ` · pha ${cutoff}` : ""}</p>
+          <p className="text-xs text-muted">Chốt {cutoff ? showDateTime(cutoff) : "--:--"}</p>
           <p className="text-xs font-semibold">Kiểu pha</p>
           <div className="flex flex-wrap gap-1.5">{styles.map((x) => <span key={x} className="rounded-full border border-line bg-surface px-2.5 py-1 text-[13px]">{x}</span>)}</div>
           {addons.length > 0 && <>

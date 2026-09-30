@@ -168,7 +168,7 @@ async function Overview({ selected }: { selected?: string }) {
 
       <details open={!d} className="rounded-xl border border-line bg-surface">
         <summary className="flex min-h-12 cursor-pointer items-center px-4 font-semibold">+ Tạo đợt pha mới</summary>
-        <div className="border-t border-line p-4"><CreateSessionForm today={today} doneBase="/admin/votes" /></div>
+        <div className="border-t border-line p-4"><CreateSessionForm doneBase="/admin/votes" /></div>
       </details>
 
       <Card title="30 ngày gần đây">

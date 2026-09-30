@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
-import { vnToday } from "@/lib/dates";
 import { PageHeader } from "@/components/ui";
 import { CreateSessionForm } from "@/components/create-session-form";
 
@@ -14,7 +13,7 @@ export default async function NewVotePage() {
     <>
       <PageHeader back={admin ? "/admin/votes" : "/"} title="Tạo đợt vote"
         subtitle="Đợt được đăng ngay cho mọi người vote." />
-      <CreateSessionForm today={vnToday()} doneBase={admin ? "/admin/votes" : "/"} />
+      <CreateSessionForm doneBase={admin ? "/admin/votes" : "/"} />
     </>
   );
 }

@@ -101,6 +101,8 @@ const createSchema = z.object({
   name: z.string().trim().max(100).transform((x) => x || "Pha cà phê"),
   service_date: z.string().refine(isIsoDate, "Ngày không hợp lệ"),
   opens_time: z.string().regex(/^(\d{2}:\d{2})?$/, "Giờ dạng HH:mm"),
+  /** ngày mở (khác ngày chốt được); trống = cùng ngày chốt */
+  opens_date: z.string().refine(isIsoDate, "Ngày mở không hợp lệ").optional(),
   cutoff_time: hhmm,
   brew_time: z.string().regex(/^(\d{2}:\d{2})?$/, "Giờ dạng HH:mm"),
   styles: labels.min(1, "Cần ít nhất 1 kiểu pha").max(10, "Tối đa 10 kiểu pha"),
@@ -117,7 +119,7 @@ export async function createVoteSessionAction(input: z.infer<typeof createSchema
   if (!parsed.success) return fail("Kiểm tra lại thông tin đợt", zodFieldErrors(parsed.error.issues));
   const v = parsed.data;
   // Giờ mở trống = mở ngay
-  const opens = v.opens_time ? vnLocalToIso(v.service_date, v.opens_time) : new Date(Date.now() - 60_000).toISOString();
+  const opens = v.opens_time ? vnLocalToIso(v.opens_date ?? v.service_date, v.opens_time) : new Date(Date.now() - 60_000).toISOString();
   const cutoff = vnLocalToIso(v.service_date, v.cutoff_time);
   const brew = v.brew_time ? vnLocalToIso(v.service_date, v.brew_time) : null;
   if (!opens || !cutoff) return fail("Giờ không hợp lệ");
@@ -183,7 +185,7 @@ export async function updateVoteSessionAction(input: Omit<z.infer<typeof createS
   const parsed = createSchema.omit({ publish: true, copy_from: true }).safeParse(input);
   if (!parsed.success) return fail("Kiểm tra lại thông tin đợt", zodFieldErrors(parsed.error.issues));
   const v = parsed.data;
-  const opens = v.opens_time ? vnLocalToIso(v.service_date, v.opens_time) : new Date(Date.now() - 60_000).toISOString();
+  const opens = v.opens_time ? vnLocalToIso(v.opens_date ?? v.service_date, v.opens_time) : new Date(Date.now() - 60_000).toISOString();
   const cutoff = vnLocalToIso(v.service_date, v.cutoff_time);
   if (!opens || !cutoff) return fail("Giờ không hợp lệ");
   if (cutoff <= opens) return fail("Giờ chốt phải sau giờ mở", { cutoff_time: "Giờ chốt phải sau giờ mở" });
