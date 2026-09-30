@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
 import { backend } from "@/lib/backend";
-import { usernameToEmail } from "@/lib/env";
+import { serverEnv, usernameToEmail } from "@/lib/env";
 import { fail, type ActionState } from "@/lib/action";
 import { log } from "@/lib/log";
 
@@ -38,7 +38,7 @@ export interface CreatedAccount {
 export async function createAccount(input: z.infer<typeof createAccountSchema>): Promise<{ ok: true; account: CreatedAccount } | { ok: false; state: ActionState<never> }> {
   const requestId = (await headers()).get("x-request-id");
   const be = await backend();
-  const temp = generateTempPassword();
+  const temp = serverEnv.defaultPassword();
   const { id: userId, error } = await be.admin.createUser(usernameToEmail(input.username), temp,
     { username: input.username, display_name: input.display_name });
   if (error || !userId) {
@@ -56,6 +56,7 @@ export async function createAccount(input: z.infer<typeof createAccountSchema>):
     const field: Record<string, string> | undefined = r.error.detail === "employee_code" ? { employee_code: "Mã NV đã tồn tại" } : r.error.detail === "username" ? { username: "Username đã tồn tại" } : undefined;
     return { ok: false, state: fail(r.error, field) };
   }
+  if (!serverEnv.forcePasswordChange()) await be.admin.setMustChangePassword(userId, false);
   return { ok: true, account: { username: input.username, display_name: input.display_name, temp_password: temp } };
 }
 

@@ -70,6 +70,19 @@ export const supabaseBackend: Backend = {
       }
       return { users, error: null };
     },
+    async findLoginEmail(username) {
+      const admin = createAdminClient();
+      const { data, error } = await admin.from("profiles").select("id").eq("username", username.trim().toLowerCase()).maybeSingle();
+      if (error) return { email: null, error: err(error) };
+      if (!data) return { email: null, error: null };
+      const u = await admin.auth.admin.getUserById(data.id as string);
+      if (u.error) return { email: null, error: u.error.status === 404 ? null : err(u.error) };
+      return { email: u.data.user?.email ?? null, error: null };
+    },
+    async setMustChangePassword(id, value) {
+      const { error } = await createAdminClient().from("profiles").update({ must_change_password: value }).eq("id", id);
+      return { error: err(error) };
+    },
     async serviceRpc<T>(fn: string, args: Record<string, unknown>) {
       const { data, error } = await createAdminClient().schema("api").rpc(fn, args);
       return { data: (data as T) ?? null, error: err(error) };

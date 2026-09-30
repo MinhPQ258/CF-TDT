@@ -3,9 +3,9 @@ import type { PGlite } from "@electric-sql/pglite";
 import { randomUUID } from "node:crypto";
 
 // Dữ liệu mẫu cho chế độ local — CHỈ để test trên máy. Nạp một lần khi DB trống.
-// Tài khoản (mật khẩu chung "coffee123"): admin (ADMIN), anh, binh, chi (thành viên quỹ), moi (bắt đổi MK).
+// Tài khoản (mật khẩu mặc định "123456"): admin (ADMIN), anh, binh, chi (thành viên quỹ), moi (không thuộc quỹ).
 
-export const LOCAL_PASSWORD = "coffee123";
+export const LOCAL_PASSWORD = "123456";
 
 type Rpc = (claims: Record<string, unknown>, fn: string, args: Record<string, unknown>) => Promise<{ data: any; error: any }>;
 
@@ -18,7 +18,7 @@ export async function seedLocal(db: PGlite, rpc: Rpc, hash: (pw: string) => stri
     { code: "NV001", username: "anh", name: "Nguyễn Văn Anh", role: "MEMBER", must: false },
     { code: "NV002", username: "binh", name: "Trần Thị Bình", role: "MEMBER", must: false },
     { code: "NV003", username: "chi", name: "Lê Minh Chi", role: "MEMBER", must: false },
-    { code: "NV004", username: "moi", name: "Phạm Thu Mới", role: "MEMBER", must: true },
+    { code: "NV004", username: "moi", name: "Phạm Thu Mới", role: "MEMBER", must: false },
   ];
   const ids: Record<string, string> = {};
   await db.transaction(async (tx) => {

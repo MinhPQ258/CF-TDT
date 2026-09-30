@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getMe } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Đăng nhập" };
@@ -10,6 +12,9 @@ const ERRORS: Record<string, string> = {
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const { next, error } = await searchParams;
+  // Phiên còn hiệu lực và có hồ sơ → vào thẳng app
+  const me = await getMe();
+  if (me && me.status === "ACTIVE") redirect(me.role === "ADMIN" ? "/admin/votes" : "/");
   return (
     <>
       <h1 className="mb-4 text-xl font-semibold">Đăng nhập</h1>

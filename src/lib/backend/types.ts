@@ -38,6 +38,10 @@ export interface Backend {
     /** email: đổi email đăng nhập (và xác nhận luôn) */
     updateUser(id: string, patch: { password?: string; banned?: boolean; email?: string }): Promise<{ error: BackendError | null }>;
     listAuthUsers(): Promise<{ users: AuthUserInfo[]; error: BackendError | null }>;
+    /** Tìm tài khoản đăng nhập theo username (không ghép email) — null nếu không có */
+    findLoginEmail(username: string): Promise<{ email: string | null; error: BackendError | null }>;
+    /** Bật/tắt cờ bắt đổi mật khẩu trên profile */
+    setMustChangePassword(id: string, value: boolean): Promise<{ error: BackendError | null }>;
     /** Gọi với quyền service_role (cron đối soát) */
     serviceRpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<RpcResponse<T>>;
   };

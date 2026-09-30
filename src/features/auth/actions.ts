@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { backend } from "@/lib/backend";
-import { usernameToEmail } from "@/lib/env";
+import { serverEnv } from "@/lib/env";
 import { callRpc } from "@/lib/rpc";
 import { fail, zodFieldErrors, type ActionState } from "@/lib/action";
 import { log } from "@/lib/log";
@@ -40,13 +40,23 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   const requestId = (await headers()).get("x-request-id");
   const be = await backend();
 
-  const email = usernameToEmail(username);
-  const { error } = await be.signIn(email, password);
+  // Tra tài khoản theo username (không ghép email) → xác thực mật khẩu
+  const found = await be.admin.findLoginEmail(username);
+  if (found.error) {
+    const code = found.error.code ?? (found.error.status ? `http_${found.error.status}` : "unknown");
+    log("error", { request_id: requestId, action: "auth.login", code: `LOOKUP_${code}`, detail: found.error.message, params: { username } });
+    return fail(`Không kết nối được hệ thống đăng nhập (mã ${code}). Liên hệ quản trị.`);
+  }
+  if (!found.email) {
+    log("warn", { request_id: requestId, action: "auth.login", code: "NO_ACCOUNT", params: { username } });
+    return fail("Sai tên đăng nhập hoặc mật khẩu");
+  }
+  const { error } = await be.signIn(found.email, password);
   if (error) {
     const code = error.code ?? (error.status ? `http_${error.status}` : "unknown");
     const kind = loginErrorKind(error);
     log(kind === "system" ? "error" : "warn", { request_id: requestId, action: "auth.login", code,
-      detail: error.message, params: { username, email_domain: email.split("@")[1] } });
+      detail: error.message, params: { username } });
     if (kind === "rate_limited") return fail("Thử đăng nhập quá nhiều lần, đợi vài phút rồi thử lại");
     if (kind === "not_confirmed") return fail("Tài khoản chưa được kích hoạt, liên hệ quản trị");
     if (kind === "banned") return fail("Tài khoản đã bị khóa, liên hệ quản trị");
@@ -67,7 +77,11 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
     return fail(me.data ? "Tài khoản đã bị khóa, liên hệ quản trị" : "Tài khoản chưa được thiết lập, liên hệ quản trị");
   }
   log("info", { request_id: requestId, user_id: me.data.id, action: "auth.login", code: "OK" });
-  if (me.data.must_change_password) redirect("/change-password");
+  if (me.data.must_change_password) {
+    if (serverEnv.forcePasswordChange()) redirect("/change-password");
+    // Không bắt đổi mật khẩu: gỡ cờ cũ để các hàm api.* không chặn
+    await be.admin.setMustChangePassword(me.data.id, false);
+  }
   // Thành viên ưu tiên mobile → Home vote; admin ưu tiên web → Đợt pha & vote
   redirect(next && safeNext(next) !== "/" ? safeNext(next) : me.data.role === "ADMIN" ? "/admin/votes" : "/");
 }
@@ -80,7 +94,7 @@ export async function logoutAction() {
 const changeSchema = z
   .object({
     current_password: z.string().min(1, "Nhập mật khẩu hiện tại"),
-    new_password: z.string().min(8, "Mật khẩu mới tối thiểu 8 ký tự").max(72, "Tối đa 72 ký tự"),
+    new_password: z.string().min(6, "Mật khẩu mới tối thiểu 6 ký tự").max(72, "Tối đa 72 ký tự"),
     confirm_password: z.string(),
   })
   .refine((v) => v.new_password === v.confirm_password, { path: ["confirm_password"], message: "Mật khẩu nhập lại không khớp" })
@@ -95,7 +109,8 @@ export async function changePasswordAction(_prev: ActionState, formData: FormDat
 
   const be = await backend();
   // Xác thực lại bằng mật khẩu hiện tại trước khi đổi
-  const reauth = await be.signIn(usernameToEmail(me.data.username), parsed.data.current_password);
+  const found = await be.admin.findLoginEmail(me.data.username);
+  const reauth = found.email ? await be.signIn(found.email, parsed.data.current_password) : { error: { message: "no account" } };
   if (reauth.error) return fail("Mật khẩu hiện tại không đúng", { current_password: "Mật khẩu hiện tại không đúng" });
 
   const { error } = await be.updatePassword(parsed.data.new_password);

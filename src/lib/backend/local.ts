@@ -90,6 +90,17 @@ export const localBackend: Backend = {
         `select u.id, u.email, c.banned from auth.users u left join auth.local_credentials c on c.user_id = u.id`);
       return { users: r.rows.map((x) => ({ id: x.id, email: x.email, confirmed: true, banned: Boolean(x.banned), last_sign_in_at: null })), error: null };
     },
+    async findLoginEmail(username) {
+      const db = await localDb();
+      const r = await db.query<{ email: string }>(
+        `select u.email from public.profiles p join auth.users u on u.id = p.id where p.username = lower($1)`, [username.trim()]);
+      return { email: r.rows[0]?.email ?? null, error: null };
+    },
+    async setMustChangePassword(id, value) {
+      const db = await localDb();
+      await db.query(`update public.profiles set must_change_password = $2 where id = $1`, [id, value]);
+      return { error: null };
+    },
     async serviceRpc<T>(fn: string, args: Record<string, unknown>) {
       return localRpc<T>({ role: "service_role" }, fn, args, await requestId());
     },

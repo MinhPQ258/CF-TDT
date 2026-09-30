@@ -38,10 +38,8 @@ export async function middleware(request: NextRequest) {
 
   if (process.env.COFFEE_BACKEND === "local") {
     const userId = await verifySession(request.cookies.get(LOCAL_SESSION_COOKIE)?.value);
-    if (isPublic(path)) {
-      if (path === "/login" && userId) return redirectTo("/");
-      return response;
-    }
+    // /login không tự chuyển: cookie có thể trỏ tới user đã bị xóa (DB local reset) → trang login tự kiểm
+    if (isPublic(path)) return response;
     if (!userId) return toLogin();
     response.headers.set("x-request-id", requestId);
     return response;
@@ -83,7 +81,7 @@ export async function middleware(request: NextRequest) {
     return redirectTo("/login", { error: profile ? "disabled" : "noprofile" });
   }
 
-  if (profile.must_change_password && path !== "/change-password") {
+  if (profile.must_change_password && process.env.APP_FORCE_PASSWORD_CHANGE === "true" && path !== "/change-password") {
     if (isApi) return NextResponse.json({ code: "MUST_CHANGE_PASSWORD" }, { status: 403 });
     return redirectTo("/change-password");
   }

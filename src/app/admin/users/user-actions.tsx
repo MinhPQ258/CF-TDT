@@ -6,7 +6,6 @@ import type { ActionState } from "@/lib/action";
 import type { AdminUser } from "@/lib/types";
 import { Input } from "@/components/ui";
 import { FormMessage, SubmitButton } from "@/components/form";
-import { TempPassword } from "./temp-password";
 
 export function UserActions({ user }: { user: AdminUser }) {
   const [sState, setStatus] = useActionState<ActionState, FormData>(setUserStatusAction, {});
@@ -35,9 +34,11 @@ export function UserActions({ user }: { user: AdminUser }) {
         </form>
         <form action={reset} className="space-y-2">
           <FormMessage state={pState} />
-          {pState.ok && pState.data && <TempPassword username={user.username} password={pState.data.temp_password} />}
+          {pState.ok && pState.data && (
+            <p className="rounded-lg bg-warn-soft p-2 text-sm">Mật khẩu hiện tại: <code className="font-mono font-semibold">{pState.data.temp_password}</code></p>
+          )}
           <input type="hidden" name="user_id" value={user.id} />
-          <p className="text-sm text-muted">Sinh mật khẩu tạm mới, bắt đổi khi đăng nhập.</p>
+          <p className="text-sm text-muted">Đặt về mật khẩu mặc định.</p>
           <SubmitButton variant="secondary" className="w-full">Đặt lại mật khẩu</SubmitButton>
         </form>
       </div>

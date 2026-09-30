@@ -8,7 +8,7 @@ export function TempPassword({ username, password }: { username: string; passwor
   const [copied, setCopied] = useState(false);
   return (
     <div className="rounded-lg border border-warn/30 bg-warn-soft p-3" role="status">
-      <p className="text-sm">Gửi riêng cho <strong>{username}</strong>. Mật khẩu sẽ không hiển thị lại.</p>
+      <p className="text-sm">Tài khoản <strong>{username}</strong> đăng nhập bằng mật khẩu:</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <code className="rounded bg-surface px-2 py-1 font-mono text-lg tracking-wider select-all">{password}</code>
         <Button type="button" variant="secondary" onClick={async () => {

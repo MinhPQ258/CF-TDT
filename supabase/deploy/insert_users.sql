@@ -4,14 +4,14 @@
 -- 1. Sửa danh sách trong "input" (mỗi dòng 1 người). fund_start = ngày vào quỹ, để null nếu không thuộc quỹ.
 --    username: 3–32 ký tự a-z 0-9 . _ -   ·   role: 'MEMBER' hoặc 'ADMIN'
 -- 2. Sửa v_domain nếu APP_AUTH_EMAIL_DOMAIN trên Vercel khác 'cf.tdt', và v_admin = username admin đang dùng.
--- 3. Run. Kết quả trả về username + temp_password: CHỈ HIỆN MỘT LẦN — gửi riêng cho từng người.
+-- 3. Run. Mọi tài khoản mới dùng mật khẩu mặc định 123456 (đổi v_password nếu muốn), không bắt đổi mật khẩu.
 --    Người đã có (trùng username / mã NV / email) tự bỏ qua, chạy lại không tạo trùng.
 --
 -- Cách khác không cần SQL: trong app → Excel → mẫu "Thành viên quỹ" (tạo tài khoản + membership, hiện mật khẩu tạm).
 -- ============================================================================
 
 with params as (
-  select 'cf.tdt'::text as v_domain, 'minhpq'::text as v_admin
+  select 'cf.tdt'::text as v_domain, 'minhpq'::text as v_admin, '123456'::text as v_password
 ),
 input (employee_code, username, display_name, role, fund_start) as (
   values
@@ -28,8 +28,7 @@ prepared as materialized (
     upper(i.role)::public.user_role as role,
     i.fund_start,
     lower(btrim(i.username)) || '@' || p.v_domain as email,
-    -- 12 ký tự dễ đọc
-    translate(encode(extensions.gen_random_bytes(9), 'base64'), '+/=0OIl', 'abcdefg') as temp_password
+    p.v_password as temp_password
   from input i cross join params p
   where not exists (select 1 from public.profiles x where x.username = lower(btrim(i.username)) or x.employee_code = btrim(i.employee_code))
     and not exists (select 1 from auth.users u where lower(u.email) = lower(btrim(i.username)) || '@' || p.v_domain)
@@ -57,7 +56,7 @@ new_identity as (
 ),
 new_profile as (
   insert into public.profiles (id, employee_code, username, display_name, role, status, must_change_password)
-  select pr.id, pr.employee_code, pr.username, pr.display_name, pr.role, 'ACTIVE', true
+  select pr.id, pr.employee_code, pr.username, pr.display_name, pr.role, 'ACTIVE', false
   from prepared pr
   returning id
 ),

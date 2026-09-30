@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getMe } from "@/lib/auth";
 import { Alert } from "@/components/ui";
 import { ChangePasswordForm } from "./change-password-form";
+import { logoutAction } from "@/features/auth/actions";
 
 export const metadata: Metadata = { title: "Đổi mật khẩu" };
 
@@ -19,6 +20,9 @@ export default async function ChangePasswordPage() {
         </div>
       )}
       <ChangePasswordForm />
+      <form action={logoutAction} className="mt-4 text-center">
+        <button className="inline-flex min-h-11 items-center text-sm text-muted underline">Không phải bạn? Đăng xuất</button>
+      </form>
     </>
   );
 }

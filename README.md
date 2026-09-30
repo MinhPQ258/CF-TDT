@@ -38,6 +38,10 @@ npm test
 
 `tests/db` chạy **toàn bộ migration trên Postgres 18 (PGlite, WASM)** với shim Supabase tối thiểu (`auth.users`, `auth.uid()`, roles), không cần Docker. Thay cho pgTAP trong plan: cùng các ca kiểm (100/3, A/B/C, đảo/đảo lại, INVARIANT_VIOLATION, RLS, idempotency song song…).
 
+## Đăng nhập
+
+Người dùng đăng nhập bằng **tên đăng nhập + mật khẩu**; server tra tài khoản theo username (không ghép email). Tài khoản mới và tài khoản được admin đặt lại dùng mật khẩu mặc định `APP_DEFAULT_PASSWORD` (mặc định `123456`), không bắt đổi mật khẩu (bật lại bằng `APP_FORCE_PASSWORD_CHANGE=true`). Supabase Auth: đặt **Minimum password length ≤ 6**.
+
 ## Chạy thử trên máy (không cần Supabase / Docker)
 
 ```bash
@@ -51,9 +55,9 @@ Mở http://localhost:3000. Chế độ local (`COFFEE_BACKEND=local`) chạy **
 | --- | --- | --- |
 | `admin` | ADMIN | Vào thẳng Đợt pha & vote |
 | `anh`, `binh`, `chi` | Thành viên quỹ | Có sẵn tiền nộp, 1 phiếu mua hộ, 1 khoản cho thêm, 1 đợt pha đang mở |
-| `moi` | Thành viên | Bị bắt đổi mật khẩu khi đăng nhập |
+| `moi` | Thành viên | Không thuộc quỹ |
 
-Mật khẩu chung: `coffee123` (chỉ cho máy local). Xóa dữ liệu làm lại: `npm run local:reset`. Migration mới được áp tự động khi khởi động lại.
+Mật khẩu mặc định: `123456`. Xóa dữ liệu làm lại: `npm run local:reset`. Migration mới được áp tự động khi khởi động lại.
 
 ## Triển khai Supabase (project mới)
 
