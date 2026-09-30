@@ -23,13 +23,21 @@ export default async function VoteDetailPage({ params }: { params: Promise<{ id:
       <PageHeader
         title={s.name}
         subtitle={`${formatDate(s.service_date)} · chốt ${formatTime(s.closed_at)}${s.planned_brew_at ? ` · pha ${formatTime(s.planned_brew_at)}` : ""}`}
-        back="/votes" backLabel="Quay lại các đợt pha"
+        back="/" backLabel="Quay lại tab Vote"
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <VoteStateBadge state={s.state} />
         {s.closed_early_at && <span className="text-sm text-muted">Chốt sớm lúc {formatDateTime(s.closed_early_at)}</span>}
       </div>
       {s.state === "CANCELLED" && <div className="mb-3"><Alert tone="warn" title="Đợt đã hủy">{s.cancel_reason}</Alert></div>}
+      {s.state === "UPCOMING" && (
+        <div className="mb-3">
+          <Alert title={`Mở vote lúc ${formatDateTime(s.opens_at)}`}>
+            Kiểu pha: {s.options.styles.map((x) => x.label).join(", ")}
+            {s.options.addons.length > 0 && <> · Đồ đi kèm: {s.options.addons.map((x) => x.label).join(", ")}</>}
+          </Alert>
+        </div>
+      )}
       <VoteResult s={s} editHref={s.state === "OPEN" ? `/?s=${s.id}&edit=1` : undefined} />
     </div>
   );

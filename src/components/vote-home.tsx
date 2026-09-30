@@ -8,6 +8,7 @@ import { Countdown } from "@/components/vote-controls";
 import { VoteResult } from "@/components/vote-result";
 import { VoteForm } from "@/components/vote-form";
 import { SessionSelect } from "@/components/session-select";
+import { SessionList } from "@/components/session-list";
 
 /** Thêm/ghi đè query vào một đường dẫn gốc ("/" hoặc "/admin/votes?tab=vote") */
 export function withQuery(base: string, params: Record<string, string | undefined>): string {
@@ -27,6 +28,8 @@ export async function VoteHome({ me, base, selected, edit, othersHref }: {
   me: Me; base: string; selected?: string; edit?: string; othersHref: string;
 }) {
   const home = await loadRpc<HomeData>("home");
+  // Chi tiết đợt (tương lai / đã qua): admin xem trang quản trị, thành viên xem trang kết quả
+  const detailBase = base.startsWith("/admin") ? "/admin/votes" : "/votes";
 
   if (home.sessions.length === 0) {
     return (
@@ -35,13 +38,7 @@ export async function VoteHome({ me, base, selected, edit, othersHref }: {
           action={me.role === "ADMIN" ? <LinkButton href="/admin/votes" variant="primary">Tạo đợt pha</LinkButton> : undefined}>
           {home.next ? <>Đợt kế tiếp: <strong>{home.next.name}</strong>, mở lúc {formatDateTime(home.next.opens_at)}.</> : "Quản trị sẽ mở đợt khi có kế hoạch pha."}
         </EmptyState>
-        {home.last_closed && (
-          <Link href={`/votes/${home.last_closed.id}`} className="block rounded-xl border border-line bg-surface p-4 hover:border-brand">
-            <p className="text-sm text-muted">Đợt vừa chốt</p>
-            <p className="font-semibold">{home.last_closed.name} · {home.last_closed.yes_count} người · {home.last_closed.cups_total} cốc</p>
-            <p className="text-sm text-brand">Xem kết quả →</p>
-          </Link>
-        )}
+        <SessionList base={base} detailBase={detailBase} />
       </div>
     );
   }
@@ -54,7 +51,7 @@ export async function VoteHome({ me, base, selected, edit, othersHref }: {
   const editHref = withQuery(base, { s: current.id, edit: "1" });
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className={cx("mx-auto max-w-2xl space-y-4", !detail && current.state !== "UPCOMING" && "pb-28 lg:pb-0")}>
       {home.sessions.length > 1 && (
         <div className="lg:hidden">
           <SessionSelect value={current.id}
@@ -82,6 +79,10 @@ export async function VoteHome({ me, base, selected, edit, othersHref }: {
             {current.planned_brew_at && <> · pha {formatTime(current.planned_brew_at)}</>}
             {current.state === "OPEN" && <> · <Countdown to={current.closed_at} /></>}
           </p>
+          <p className="mt-1 text-sm">
+            <strong>{current.yes_count + current.no_count}</strong> người đã vote
+            <span className="text-muted"> · {current.yes_count} uống · {current.cups_total} cốc{current.no_count ? ` · ${current.no_count} không uống` : ""}</span>
+          </p>
         </div>
         <VoteStateBadge state={current.state} />
       </div>
@@ -99,6 +100,8 @@ export async function VoteHome({ me, base, selected, edit, othersHref }: {
           <VoteForm key={current.id} session={current} initial={current.my_vote ?? current.prefill} doneHref={resultHref} loginNext={editHref} people={people} />
         </>
       )}
+
+      <SessionList base={base} detailBase={detailBase} excludeId={current.id} />
     </div>
   );
 }

@@ -162,7 +162,7 @@ export function CreateSessionForm({ doneBase, editing, doneHref }: {
         </div>
         {state.fieldErrors?.styles && <p className="text-sm text-danger">{state.fieldErrors.styles}</p>}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button type="button" className="min-w-32" disabled={pending || styles.length === 0} onClick={submit}>{pending ? (editing ? "Đang lưu…" : "Đang tạo…") : editing ? "Lưu" : "Tạo"}</Button>
+          <Button type="button" className="min-w-32" aria-busy={pending} disabled={pending || styles.length === 0} onClick={submit}>{pending ? (editing ? "Đang lưu…" : "Đang tạo…") : editing ? "Lưu" : "Tạo"}</Button>
         </div>
       </div>
 

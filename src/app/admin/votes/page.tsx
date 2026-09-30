@@ -5,12 +5,13 @@ import { loadRpc } from "@/lib/rpc";
 import { addDays, formatTime, vnToday } from "@/lib/dates";
 import type { VoteSession, VoteSessionDetail } from "@/lib/types";
 import { Card, EmptyState, LinkButton, PageHeader, Stat, cx } from "@/components/ui";
-import { VoteStateBadge, VoteWhen } from "@/components/vote-bits";
+import { VoteStateBadge } from "@/components/vote-bits";
 import { Countdown } from "@/components/vote-controls";
 import { VoteHome, withQuery } from "@/components/vote-home";
 import { CreateSessionForm } from "@/components/create-session-form";
 import { CopyBrewList, SessionMoreMenu } from "./[id]/session-admin";
 import { SessionSelect } from "@/components/session-select";
+import { SessionList } from "@/components/session-list";
 
 export const metadata: Metadata = { title: "Đợt pha & vote" };
 
@@ -171,26 +172,7 @@ async function Overview({ selected }: { selected?: string }) {
         <div className="border-t border-line p-4"><CreateSessionForm doneBase="/admin/votes" /></div>
       </details>
 
-      <Card title="30 ngày gần đây">
-        {sessions.length === 0 ? <EmptyState title="Chưa có đợt pha nào" /> : (
-          <ul className="divide-y divide-line">
-            {sessions.map((s) => (
-              <li key={s.id}>
-                <Link href={`/admin/votes/${s.id}`} className="flex flex-wrap items-center justify-between gap-2 py-3 hover:bg-bg">
-                  <span className="min-w-0">
-                    <span className="block font-medium text-brand">{s.name}</span>
-                    <span className="text-sm text-muted"><VoteWhen s={s} /></span>
-                  </span>
-                  <span className="flex items-center gap-3 text-sm">
-                    <span>{s.yes_count} người · {s.cups_total} cốc</span>
-                    <VoteStateBadge state={s.state} />
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <SessionList base="/admin/votes" detailBase="/admin/votes" excludeId={current?.id} />
     </div>
   );
 }

@@ -26,3 +26,16 @@ test("upgrade_013_016.sql: DB migration 12 → 16, chạy 2 lần không lỗi, 
   const f = await rpc(db, a.id, "fund_summary", {});
   expect(f.people).toHaveLength(2);
 });
+
+test("upgrade_017_avatar.sql: DB migration 16 → 17, chạy 2 lần không lỗi", async () => {
+  const db = await createDb({ upTo: "20260930000016_everyone_shares.sql" });
+  const sql = readFileSync("supabase/deploy/upgrade_017_avatar.sql", "utf8");
+  await db.exec(sql);
+  await db.exec(sql);
+  const checks = await db.query<{ co: boolean }>(sql.slice(sql.lastIndexOf("select 'cột")));
+  expect(checks.rows.every((r) => r.co)).toBe(true);
+  const a = await createUser(db, { code: "NV001", username: "anh" });
+  const r = await rpc(db, a.id, "set_my_avatar", { p_avatar: "data:image/jpeg;base64,AAAA" });
+  expect(r.avatar).toBe("data:image/jpeg;base64,AAAA");
+  expect((await rpc(db, a.id, "me", {})).avatar).toBe("data:image/jpeg;base64,AAAA");
+});

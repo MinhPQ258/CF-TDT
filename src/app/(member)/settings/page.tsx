@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { logoutAction } from "@/features/auth/actions";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { ADMIN_NAV } from "@/components/app-shell";
+import { AvatarUploader } from "@/components/avatar-uploader";
 
 export const metadata: Metadata = { title: "Cài đặt" };
 
@@ -20,17 +21,15 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-xl space-y-4">
       <PageHeader title="Cài đặt" />
       <Card>
-        <div className="flex items-center gap-3">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-soft text-lg font-bold text-brand" aria-hidden>
-            {me.display_name.trim().split(/\s+/).pop()?.[0]?.toUpperCase() ?? "?"}
-          </span>
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate font-semibold">{me.display_name}</p>
             <p className="text-sm text-muted">@{me.username} · {me.employee_code}</p>
           </div>
-          <div className="ml-auto flex flex-col items-end gap-1">
-            {admin && <Badge tone="brand">Quản trị</Badge>}
-          </div>
+          {admin && <Badge tone="brand">Quản trị</Badge>}
+        </div>
+        <div className="mt-3 border-t border-line pt-3">
+          <AvatarUploader name={me.display_name} avatar={me.avatar ?? null} />
         </div>
       </Card>
 

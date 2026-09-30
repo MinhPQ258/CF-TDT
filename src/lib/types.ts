@@ -20,6 +20,8 @@ export interface Me {
   status: UserStatus;
   must_change_password: boolean;
   is_member_today: boolean;
+  /** data URL ảnh đại diện (null = chưa có, hiện chữ cái đầu) */
+  avatar: string | null;
 }
 
 export type Breakdown = Record<EntryType, number>;

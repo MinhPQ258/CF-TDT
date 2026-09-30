@@ -113,7 +113,7 @@ export function DepositForm({ people }: { people: { id: string; label: string; b
         </div>
       </details>
 
-      <Button type="button" className="w-full" disabled={pending || !valid || picked.length === 0} onClick={submit}>
+      <Button type="button" className="w-full" aria-busy={pending} disabled={pending || !valid || picked.length === 0} onClick={submit}>
         {pending ? "Đang ghi…" : picked.length > 1 && valid
           ? `Nộp quỹ ${picked.length} người · ${formatVnd(parsed * picked.length)}`
           : "Nộp quỹ"}

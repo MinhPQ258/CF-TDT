@@ -68,13 +68,13 @@ export function JobPreview({ job }: { job: ImportJob }) {
 
         {job.status !== "COMMITTED" && job.status !== "DISCARDED" && (
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" disabled={pending} onClick={() => start(async () => {
+            <Button type="button" variant="secondary" aria-busy={pending} disabled={pending} onClick={() => start(async () => {
               const r = await discardImportAction({ job_id: job.id });
               setState({ ...r, data: undefined });
               if (r.ok) router.push("/admin/import-export");
             })}>Hủy lần import</Button>
-            <Button type="button" variant="secondary" disabled={pending} onClick={() => { setState({}); router.refresh(); }}>Tính lại preview</Button>
-            <Button type="button" className="flex-1" disabled={!canCommit || pending || !job.preview_hash} onClick={() => start(async () => {
+            <Button type="button" variant="secondary" aria-busy={pending} disabled={pending} onClick={() => { setState({}); router.refresh(); }}>Tính lại preview</Button>
+            <Button type="button" className="flex-1" aria-busy={pending} disabled={!canCommit || pending || !job.preview_hash} onClick={() => start(async () => {
               const r = await commitImportAction({ job_id: job.id, preview_hash: job.preview_hash! });
               setState(r);
               router.refresh();

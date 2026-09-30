@@ -12,7 +12,7 @@ export function WithdrawButton({ sessionId, afterHref }: { sessionId: string; af
   const router = useRouter();
   return (
     <div>
-      <Button type="button" variant="secondary" className="w-full text-danger" disabled={pending} onClick={() => start(async () => {
+      <Button type="button" variant="secondary" className="w-full text-danger" aria-busy={pending} disabled={pending} onClick={() => start(async () => {
         const r = await withdrawVoteAction({ session_id: sessionId });
         if (r.ok) {
           router.replace(afterHref);

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Me } from "@/lib/types";
 import { BottomTabs, NavLinks, type NavItem, type TabItem } from "@/components/nav-links";
 import { logoutAction } from "@/features/auth/actions";
+import { Avatar } from "@/components/avatar";
 
 export const MEMBER_NAV: NavItem[] = [
   { href: "/", label: "Pha", icon: "cup" },
@@ -54,7 +55,10 @@ export function AppShell({ me, nav, children, area }: { me: Me; nav: NavItem[]; 
             <img src="/logo.webp" alt="" width={40} height={40} className="size-10 rounded-full" />
             The 12A Coffee
           </Link>
-          <p className="mt-1 truncate text-sm text-muted">{me.display_name}</p>
+          <Link href="/settings" className="mt-2 flex items-center gap-2 rounded-lg text-sm text-muted hover:text-ink">
+            <Avatar name={me.display_name} src={me.avatar} size={28} />
+            <span className="truncate">{me.display_name}</span>
+          </Link>
         </div>
         <nav className="flex-1 overflow-y-auto p-2" aria-label="Điều hướng chính">
           <NavLinks items={nav} variant="side" />
@@ -81,9 +85,7 @@ export function AppShell({ me, nav, children, area }: { me: Me; nav: NavItem[]; 
         </Link>
         <Link href="/settings" className="flex min-h-11 max-w-[12rem] items-center gap-2 rounded-lg px-2 text-sm hover:bg-brand-soft" aria-label="Cài đặt tài khoản">
           <span className="truncate">{me.display_name}</span>
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-soft font-bold text-brand" aria-hidden>
-            {me.display_name.trim().split(/\s+/).pop()?.[0]?.toUpperCase() ?? "?"}
-          </span>
+          <Avatar name={me.display_name} src={me.avatar} size={32} />
         </Link>
       </header>
 

@@ -40,7 +40,7 @@ export function GiftForm() {
       <Field label="Ghi chú" htmlFor="gift-note"><Input id="gift-note" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder="VD: sếp cho thêm" /></Field>
 
       {!preview ? (
-        <Button type="button" className="w-full" disabled={pending} onClick={() => start(async () => {
+        <Button type="button" className="w-full" aria-busy={pending} disabled={pending} onClick={() => start(async () => {
           const r = await previewGiftAction({ amount_vnd: amount, occurred_on: date });
           setState(r.ok ? {} : { ...r, data: undefined });
           setPreview(r.ok && r.data ? r.data : null);
@@ -50,8 +50,8 @@ export function GiftForm() {
           <SplitExplanation total={preview.total_vnd} split={preview.split} />
           <AllocationTable members={preview.members} />
           <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={invalidate} disabled={pending}>Sửa</Button>
-            <Button type="button" className="flex-1" disabled={pending} onClick={() => start(async () => {
+            <Button type="button" variant="secondary" onClick={invalidate} aria-busy={pending} disabled={pending}>Sửa</Button>
+            <Button type="button" className="flex-1" aria-busy={pending} disabled={pending} onClick={() => start(async () => {
               const r = await postGiftAction({ idem_key: idemKey, amount_vnd: amount, occurred_on: date, preview_hash: preview.preview_hash, external_ref: ref, note });
               setState(r);
               if (r.ok) {

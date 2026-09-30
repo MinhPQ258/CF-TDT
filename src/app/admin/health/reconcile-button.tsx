@@ -11,7 +11,7 @@ export function ReconcileButton() {
   const [state, setState] = useState<ActionState>({});
   return (
     <div className="flex flex-col items-end gap-2">
-      <Button variant="secondary" disabled={pending} onClick={() => start(async () => setState(await reconcileNowAction()))}>
+      <Button variant="secondary" aria-busy={pending} disabled={pending} onClick={() => start(async () => setState(await reconcileNowAction()))}>
         {pending ? "Đang đối soát…" : "Đối soát ngay"}
       </Button>
       <FormMessage state={state} />

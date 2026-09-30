@@ -132,7 +132,7 @@ export function VoteForm({ session, initial, doneHref, loginNext, people = [] }:
   }
 
   return (
-    <div className="space-y-5 pb-28 lg:pb-0">
+    <div className="space-y-5">
       <div role="radiogroup" aria-label="Bạn có uống không" className="grid grid-cols-2 gap-2">
         <Segment selected={drink} onClick={() => setDrink(true)}>Có uống</Segment>
         <Segment selected={!drink} onClick={() => setDrink(false)}>Không uống</Segment>

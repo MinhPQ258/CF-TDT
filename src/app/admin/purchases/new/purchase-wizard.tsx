@@ -212,7 +212,7 @@ export function PurchaseWizard({ payers }: { payers: { id: string; label: string
             </p>
             <div className="mt-4 flex gap-2 lg:hidden">
               <Button type="button" variant="secondary" onClick={() => setStep(1)}>←</Button>
-              <Button type="button" className="flex-1" disabled={pending} onClick={doPreview}>{pending ? "Đang tính…" : "Xem trước phân bổ →"}</Button>
+              <Button type="button" className="flex-1" aria-busy={pending} disabled={pending} onClick={doPreview}>{pending ? "Đang tính…" : "Xem trước phân bổ →"}</Button>
             </div>
           </Card>
         </div>
@@ -222,7 +222,7 @@ export function PurchaseWizard({ payers }: { payers: { id: string; label: string
             {!preview ? (
               <div className="space-y-3">
                 <p className="text-muted">Bấm xem trước để hệ thống tính danh sách người chia tại ngày phiếu và phần của từng người.</p>
-                <Button type="button" className="hidden w-full lg:inline-flex" disabled={pending} onClick={doPreview}>{pending ? "Đang tính…" : "Xem trước phân bổ"}</Button>
+                <Button type="button" className="hidden w-full lg:inline-flex" aria-busy={pending} disabled={pending} onClick={doPreview}>{pending ? "Đang tính…" : "Xem trước phân bổ"}</Button>
                 <Button type="button" variant="secondary" className="w-full lg:hidden" onClick={() => setStep(2)}>← Quay lại dòng hàng</Button>
               </div>
             ) : (
@@ -232,8 +232,8 @@ export function PurchaseWizard({ payers }: { payers: { id: string; label: string
                 <SplitExplanation total={preview.total_vnd} split={preview.split} />
                 <div className="max-h-[50dvh] overflow-y-auto"><AllocationTable members={preview.members} showCredit /></div>
                 <div className="flex gap-2">
-                  <Button type="button" variant="secondary" disabled={pending} onClick={() => { setPreview(null); setStep(2); }}>Sửa</Button>
-                  <Button type="button" className="flex-1" disabled={pending} onClick={doPost}>{pending ? "Đang ghi…" : "Xác nhận ghi phiếu"}</Button>
+                  <Button type="button" variant="secondary" aria-busy={pending} disabled={pending} onClick={() => { setPreview(null); setStep(2); }}>Sửa</Button>
+                  <Button type="button" className="flex-1" aria-busy={pending} disabled={pending} onClick={doPost}>{pending ? "Đang ghi…" : "Xác nhận ghi phiếu"}</Button>
                 </div>
               </div>
             )}
