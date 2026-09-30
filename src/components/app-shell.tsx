@@ -16,7 +16,7 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/dashboard", label: "Tổng quan quỹ", icon: "chart" },
   { href: "/admin/purchases", label: "Mua đồ", icon: "receipt" },
   { href: "/admin/fund", label: "Sổ quỹ", icon: "wallet" },
-  { href: "/admin/users", label: "Tài khoản", icon: "user" },
+  { href: "/admin/users", label: "Quản trị người dùng", icon: "user" },
   { href: "/admin/reports", label: "Báo cáo", icon: "table" },
   { href: "/admin/import-export", label: "Excel", icon: "file" },
   { href: "/admin/health", label: "Sức khỏe sổ", icon: "pulse" },

@@ -9,7 +9,7 @@ import { Badge, Card, Money, PageHeader } from "@/components/ui";
 import { CreateUserForm } from "./create-user-form";
 import { UserActions } from "./user-actions";
 
-export const metadata: Metadata = { title: "Tài khoản" };
+export const metadata: Metadata = { title: "Quản trị người dùng" };
 
 export default async function UsersPage() {
   const me = await requireAdmin();
@@ -20,12 +20,12 @@ export default async function UsersPage() {
   const authById = new Map(auth.users.map((a) => [a.id, a]));
   return (
     <>
-      <PageHeader back="/settings" backLabel="Quay lại Cài đặt" backMobileOnly title="Tài khoản" subtitle={`Đăng nhập bằng tên đăng nhập. Tài khoản mới và tài khoản được đặt lại dùng mật khẩu mặc định ${serverEnv.defaultPassword()}.`} />
+      <PageHeader back="/settings" backLabel="Quay lại Cài đặt" backMobileOnly title="Quản trị người dùng" subtitle={`Đăng nhập bằng username. Người dùng mới và người được cấp lại mật khẩu dùng mật khẩu mặc định ${serverEnv.defaultPassword()}.`} />
       {auth.error && (
         <p className="mb-4 rounded-lg bg-warn-soft p-3 text-sm">Không đọc được danh sách đăng nhập (mã {auth.error.code ?? auth.error.status ?? "?"}) — kiểm tra SUPABASE_SERVICE_ROLE_KEY.</p>
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <Card title={`${users.length} tài khoản`} className="order-2 lg:order-1">
+        <Card title={`${users.length} người dùng`} className="order-2 lg:order-1">
           <ul className="divide-y divide-line">
             {users.map((u) => {
               const a = authById.get(u.id);
@@ -46,13 +46,13 @@ export default async function UsersPage() {
                   </div>
                   <span className="text-right text-sm">Số dư<br /><Money value={u.balance_vnd} sign className="font-semibold" /></span>
                 </div>
-                {u.id !== me.id && <UserActions user={u} />}
+                {u.id !== me.id && <UserActions user={u} defaultPassword={serverEnv.defaultPassword()} />}
               </li>
               );
             })}
           </ul>
         </Card>
-        <Card title="Tạo tài khoản" className="order-1 lg:order-2"><CreateUserForm /></Card>
+        <Card title="Tạo người dùng" className="order-1 lg:order-2"><CreateUserForm defaultPassword={serverEnv.defaultPassword()} /></Card>
       </div>
     </>
   );

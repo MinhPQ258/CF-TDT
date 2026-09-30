@@ -10,12 +10,20 @@ import { log } from "@/lib/log";
 
 // Không phải Server Action: chỉ gọi từ action đã kiểm quyền admin.
 
+/** Tạo nhanh: chỉ cần username. Mã NV trống → tự sinh NV### kế tiếp; tên hiển thị trống → = username. */
 export const createAccountSchema = z.object({
-  employee_code: z.string().trim().regex(/^[A-Za-z0-9._-]{1,32}$/, "Mã NV 1–32 ký tự chữ/số . _ -"),
+  employee_code: z.string().trim().regex(/^[A-Za-z0-9._-]{1,32}$/, "Mã NV 1–32 ký tự chữ/số . _ -").optional().or(z.literal("").transform(() => undefined)),
   username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,32}$/, "Username 3–32 ký tự a-z 0-9 . _ -"),
-  display_name: z.string().trim().min(1, "Nhập tên hiển thị").max(100),
-  role: z.enum(["MEMBER", "ADMIN"]),
+  display_name: z.string().trim().max(100).optional(),
+  role: z.enum(["MEMBER", "ADMIN"]).default("MEMBER"),
 });
+
+/** Mã NV kế tiếp dạng NV001, NV002… (lớn nhất hiện có + 1) */
+async function nextEmployeeCode(): Promise<string> {
+  const r = await callRpc<{ employee_code: string }[]>("admin_list_users");
+  const max = r.ok ? Math.max(0, ...r.data.map((u) => Number(/^NV(\d+)$/i.exec(u.employee_code)?.[1] ?? 0))) : 0;
+  return `NV${String(max + 1).padStart(3, "0")}`;
+}
 
 /** Mật khẩu tạm dễ đọc (bỏ ký tự dễ nhầm), 12 ký tự. Chỉ hiển thị 1 lần. */
 export function generateTempPassword(): string {
@@ -35,8 +43,14 @@ export interface CreatedAccount {
  * Tạo tài khoản: auth user (service key, email ảo) → profile (RPC với JWT admin, có audit).
  * Nếu tạo profile lỗi thì xóa auth user vừa tạo (bù trừ).
  */
-export async function createAccount(input: z.infer<typeof createAccountSchema>): Promise<{ ok: true; account: CreatedAccount } | { ok: false; state: ActionState<never> }> {
+export async function createAccount(raw: z.input<typeof createAccountSchema>): Promise<{ ok: true; account: CreatedAccount } | { ok: false; state: ActionState<never> }> {
   const requestId = (await headers()).get("x-request-id");
+  const input = {
+    username: raw.username.trim().toLowerCase(),
+    role: raw.role ?? "MEMBER",
+    display_name: raw.display_name?.trim() || raw.username.trim().toLowerCase(),
+    employee_code: raw.employee_code?.trim() || await nextEmployeeCode(),
+  };
   const be = await backend();
   const temp = serverEnv.defaultPassword();
   const { id: userId, error } = await be.admin.createUser(usernameToEmail(input.username), temp,
