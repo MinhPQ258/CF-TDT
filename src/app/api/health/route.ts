@@ -50,6 +50,24 @@ export async function GET() {
   if (apiCode === "PGRST106") problems.push("Schema api chưa được thêm vào Exposed schemas");
   else if (apiCode === "PGRST202") problems.push("Chưa có hàm api.me — chưa chạy coffee_tdt_full.sql");
   else if (!apiExposed) problems.push(`Data API trả mã ${apiCode}`);
+  // Hàm tiêu biểu của từng migration: anon gọi → 42501 = có hàm; PGRST202 = chưa chạy migration đó
+  const MIGRATION_PROBES: Record<string, string> = {
+    "000008_api_votes": "list_vote_sessions",
+    "000010_api_import": "import_list_jobs",
+    "000012_vote_options": "admin_vote_templates",
+  };
+  const migrations: Record<string, boolean | string> = {};
+  if (apiExposed) {
+    await Promise.all(Object.entries(MIGRATION_PROBES).map(async ([name, fn]) => {
+      const r = await probe(`${url}/rest/v1/rpc/${fn}`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json", "Content-Profile": "api" }, body: "{}",
+      });
+      const code = "status" in r ? (r.body?.code ?? String(r.status)) : `network: ${r.error}`;
+      migrations[name] = code === "42501" ? true : code === "PGRST202" ? false : code;
+    }));
+    const missing = Object.entries(migrations).filter(([, v]) => v !== true).map(([k]) => k);
+    if (missing.length) problems.push(`DB thiếu migration: ${missing.join(", ")} — chạy file nâng cấp trong supabase/deploy/`);
+  }
   if (authOk && "body" in auth && auth.body?.mailer_autoconfirm === false) {
     problems.push("Confirm email đang bật: user tạo trong Dashboard phải tick Auto Confirm");
   }
@@ -62,6 +80,7 @@ export async function GET() {
     env,
     auth: authOk ? { reachable: true, disable_signup: auth.body?.disable_signup, mailer_autoconfirm: auth.body?.mailer_autoconfirm } : { reachable: false },
     data_api: { api_schema_exposed: apiExposed, code: apiCode },
+    migrations,
     problems,
   }, { status: problems.length ? 503 : 200 });
 }
