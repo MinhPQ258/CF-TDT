@@ -189,6 +189,29 @@ export interface Membership {
   is_active_today: boolean;
 }
 
+export interface VoteOption {
+  id: string;
+  label: string;
+  hidden: boolean;
+}
+
+export interface VoteOptions {
+  styles: VoteOption[];
+  addons: VoteOption[];
+}
+
+export interface MyVote {
+  choice: "YES" | "NO";
+  coffee_type: CoffeeType | null;
+  cups: number | null;
+  note: string | null;
+  updated_at: string;
+  style_option_id: string | null;
+  style_label: string | null;
+  addon_ids: string[];
+  addon_labels: string[];
+}
+
 export interface VoteSession {
   id: string;
   name: string;
@@ -201,15 +224,44 @@ export interface VoteSession {
   closed_early_at: string | null;
   cancel_reason: string | null;
   closed_at: string;
+  allow_cups: boolean;
+  options: VoteOptions;
   yes_count: number;
   no_count: number;
   cups_total: number;
-  my_vote: { choice: "YES" | "NO"; coffee_type: CoffeeType | null; cups: number | null; note: string | null; updated_at: string } | null;
+  my_vote: MyVote | null;
+}
+
+export interface VotePrefill {
+  choice: "YES" | "NO";
+  cups: number;
+  style_option_id: string | null;
+  addon_ids: string[];
+}
+
+export interface HomeData {
+  sessions: (VoteSession & { prefill: VotePrefill | null })[];
+  next: { id: string; name: string; opens_at: string; cutoff_at: string } | null;
+  last_closed: VoteSession | null;
 }
 
 export interface VoteSessionDetail extends VoteSession {
-  by_type: Partial<Record<CoffeeType, { people: number; cups: number }>> | null;
-  votes: { display_name: string; employee_code: string; choice: "YES" | "NO"; coffee_type: CoffeeType | null; cups: number | null; note: string | null; updated_at: string; is_me: boolean }[];
+  options_all: VoteOptions | null;
+  by_style: { label: string; people: number; cups: number }[];
+  by_addon: { label: string; people: number }[];
+  votes: { display_name: string; employee_code: string; choice: "YES" | "NO"; style_label: string | null; addon_labels: string[]; cups: number | null; note: string | null; updated_at: string; is_me: boolean }[];
+  not_voted: { display_name: string; employee_code: string }[] | null;
+}
+
+export interface VoteTemplate {
+  id: string;
+  name: string;
+  service_date: string;
+  opens_at: string;
+  cutoff_at: string;
+  planned_brew_at: string | null;
+  allow_cups: boolean;
+  options: VoteOptions;
 }
 
 export interface Overview {

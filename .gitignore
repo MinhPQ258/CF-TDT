@@ -9,3 +9,5 @@ next-env.d.ts
 supabase/.temp/
 supabase/.branches/
 coverage/
+.local-db/
+.next-*/

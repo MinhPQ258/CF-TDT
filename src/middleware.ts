@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { LOCAL_SESSION_COOKIE, verifySession } from "@/lib/backend/local-session";
 
 // Middleware: làm mới phiên, gắn request_id, chặn tài khoản khóa, ép đổi mật khẩu, chặn /admin nếu không phải ADMIN.
+// Chế độ local (COFFEE_BACKEND=local): chỉ kiểm cookie ký; khóa TK / đổi MK / quyền admin do layout kiểm (lớp 2).
 
 const PUBLIC_PATHS = ["/login", "/api/cron"];
 
@@ -13,8 +15,37 @@ export async function middleware(request: NextRequest) {
   const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
+  const path = request.nextUrl.pathname;
+  const isApi = path.startsWith("/api/");
 
   let response = NextResponse.next({ request: { headers: requestHeaders } });
+
+  // Chuyển hướng nhưng giữ cookie phiên vừa làm mới
+  const redirectTo = (target: string, params?: Record<string, string>) => {
+    const url = request.nextUrl.clone();
+    url.pathname = target;
+    url.search = "";
+    for (const [k, v] of Object.entries(params ?? {})) url.searchParams.set(k, v);
+    const r = NextResponse.redirect(url);
+    for (const c of response.cookies.getAll()) r.cookies.set(c);
+    r.headers.set("x-request-id", requestId);
+    return r;
+  };
+  const toLogin = () => {
+    if (isApi) return NextResponse.json({ code: "SESSION_EXPIRED" }, { status: 401 });
+    return redirectTo("/login", path === "/" ? {} : { next: path + request.nextUrl.search });
+  };
+
+  if (process.env.COFFEE_BACKEND === "local") {
+    const userId = await verifySession(request.cookies.get(LOCAL_SESSION_COOKIE)?.value);
+    if (isPublic(path)) {
+      if (path === "/login" && userId) return redirectTo("/");
+      return response;
+    }
+    if (!userId) return toLogin();
+    response.headers.set("x-request-id", requestId);
+    return response;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,21 +63,6 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const path = request.nextUrl.pathname;
-  const isApi = path.startsWith("/api/");
-
-  // Chuyển hướng nhưng giữ cookie phiên vừa làm mới
-  const redirectTo = (target: string, params?: Record<string, string>) => {
-    const url = request.nextUrl.clone();
-    url.pathname = target;
-    url.search = "";
-    for (const [k, v] of Object.entries(params ?? {})) url.searchParams.set(k, v);
-    const r = NextResponse.redirect(url);
-    for (const c of response.cookies.getAll()) r.cookies.set(c);
-    r.headers.set("x-request-id", requestId);
-    return r;
-  };
-
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
 
@@ -56,10 +72,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  if (!userId) {
-    if (isApi) return NextResponse.json({ code: "SESSION_EXPIRED" }, { status: 401 });
-    return redirectTo("/login", path === "/" ? {} : { next: path + request.nextUrl.search });
-  }
+  if (!userId) return toLogin();
 
   const { data: me } = await supabase.schema("api").rpc("me");
   const profile = me as { status: string; role: string; must_change_password: boolean } | null;
@@ -83,8 +96,6 @@ export async function middleware(request: NextRequest) {
     for (const c of response.cookies.getAll()) r.cookies.set(c);
     return r;
   }
-
-  if (path === "/") return redirectTo(profile.role === "ADMIN" ? "/admin/dashboard" : "/me");
 
   response.headers.set("x-request-id", requestId);
   return response;

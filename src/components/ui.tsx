@@ -16,7 +16,7 @@ const VARIANT: Record<Variant, string> = {
 };
 
 export const buttonClass = (variant: Variant = "primary", extra?: string) =>
-  cx("inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-base font-medium",
+  cx("inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-base font-medium",
     "disabled:cursor-not-allowed disabled:opacity-60", VARIANT[variant], extra);
 
 export function Button({ variant = "primary", className, ...props }: ComponentProps<"button"> & { variant?: Variant }) {

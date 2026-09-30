@@ -2,7 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ["exceljs"],
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  serverExternalPackages: ["exceljs", "@electric-sql/pglite"],
   experimental: {
     serverActions: { bodySizeLimit: "3mb" },
   },

@@ -5,16 +5,16 @@ import { NavLinks, type NavItem } from "@/components/nav-links";
 import { logoutAction } from "@/features/auth/actions";
 
 export const MEMBER_NAV: NavItem[] = [
+  { href: "/", label: "Pha", icon: "cup" },
   { href: "/me", label: "Số dư", icon: "wallet" },
-  { href: "/votes", label: "Vote", icon: "cup" },
   { href: "/purchases", label: "Phiếu mua", icon: "receipt" },
 ];
 
 export const ADMIN_NAV: NavItem[] = [
+  { href: "/admin/votes", label: "Đợt pha", icon: "cup" },
   { href: "/admin/dashboard", label: "Tổng quan", icon: "chart" },
-  { href: "/admin/fund", label: "Sổ quỹ", icon: "wallet" },
   { href: "/admin/purchases", label: "Mua đồ", icon: "receipt" },
-  { href: "/admin/votes", label: "Đợt vote", icon: "cup" },
+  { href: "/admin/fund", label: "Sổ quỹ", icon: "wallet" },
   { href: "/admin/memberships", label: "Thành viên quỹ", icon: "users" },
   { href: "/admin/users", label: "Tài khoản", icon: "user" },
   { href: "/admin/reports", label: "Báo cáo", icon: "table" },

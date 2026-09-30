@@ -1,0 +1,63 @@
+import "server-only";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { Backend, BackendError } from "./types";
+
+function err(e: { code?: string; message: string; details?: string; status?: number } | null | undefined): BackendError | null {
+  return e ? { code: e.code, message: e.message, details: e.details, status: e.status } : null;
+}
+
+export const supabaseBackend: Backend = {
+  kind: "supabase",
+
+  async currentUserId() {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getClaims();
+    return (data?.claims?.sub as string | undefined) ?? null;
+  },
+
+  async rpc<T>(fn: string, args: Record<string, unknown>) {
+    const supabase = await createClient();
+    const { data, error } = await supabase.schema("api").rpc(fn, args);
+    return { data: (data as T) ?? null, error: err(error) };
+  },
+
+  async signIn(email, password) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: err(error) };
+  },
+
+  async signOut() {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+  },
+
+  async updatePassword(password) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.updateUser({ password });
+    return { error: err(error) };
+  },
+
+  admin: {
+    async createUser(email, password, meta) {
+      const { data, error } = await createAdminClient().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: meta });
+      return { id: data?.user?.id ?? null, error: err(error) };
+    },
+    async deleteUser(id) {
+      const { error } = await createAdminClient().auth.admin.deleteUser(id);
+      return { error: err(error) };
+    },
+    async updateUser(id, patch) {
+      const { error } = await createAdminClient().auth.admin.updateUserById(id, {
+        ...(patch.password ? { password: patch.password } : {}),
+        ...(patch.banned === undefined ? {} : { ban_duration: patch.banned ? "876000h" : "none" }),
+      });
+      return { error: err(error) };
+    },
+    async serviceRpc<T>(fn: string, args: Record<string, unknown>) {
+      const { data, error } = await createAdminClient().schema("api").rpc(fn, args);
+      return { data: (data as T) ?? null, error: err(error) };
+    },
+  },
+};

@@ -38,6 +38,23 @@ npm test
 
 `tests/db` chạy **toàn bộ migration trên Postgres 18 (PGlite, WASM)** với shim Supabase tối thiểu (`auth.users`, `auth.uid()`, roles), không cần Docker. Thay cho pgTAP trong plan: cùng các ca kiểm (100/3, A/B/C, đảo/đảo lại, INVARIANT_VIOLATION, RLS, idempotency song song…).
 
+## Chạy thử trên máy (không cần Supabase / Docker)
+
+```bash
+npm install
+npm run dev:local
+```
+
+Mở http://localhost:3000. Chế độ local (`COFFEE_BACKEND=local`) chạy **đúng các file `supabase/migrations`** trên Postgres nhúng (PGlite) lưu ở `.local-db/`; chỉ phần đăng nhập Supabase được thay bằng bảng mật khẩu local + cookie ký HMAC. Lần đầu chạy tự nạp dữ liệu mẫu (`src/lib/backend/local-seed.ts`):
+
+| Tài khoản | Vai trò | Ghi chú |
+| --- | --- | --- |
+| `admin` | ADMIN | Vào thẳng Đợt pha & vote |
+| `anh`, `binh`, `chi` | Thành viên quỹ | Có sẵn tiền nộp, 1 phiếu mua hộ, 1 khoản cho thêm, 1 đợt pha đang mở |
+| `moi` | Thành viên | Bị bắt đổi mật khẩu khi đăng nhập |
+
+Mật khẩu chung: `coffee123` (chỉ cho máy local). Xóa dữ liệu làm lại: `npm run local:reset`. Migration mới được áp tự động khi khởi động lại.
+
 ## Triển khai Supabase (project mới)
 
 1. SQL Editor → dán `supabase/deploy/coffee_tdt_full.sql` → Run (một transaction).

@@ -84,10 +84,18 @@ function toRpcError(e: unknown): RpcError {
 
 type Params = Record<string, unknown>;
 
+/** Tham số kiểu mảng Postgres (text[] / uuid[]); các mảng khác là jsonb. */
+const PG_ARRAY_PARAMS = new Set(["p_styles", "p_addons", "p_addon_ids"]);
+
+function pgArray(xs: unknown[]): string {
+  return `{${xs.map((x) => `"${String(x).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",")}}`;
+}
+
 function buildCall(fn: string, params: Params) {
   const keys = Object.keys(params);
   const values = keys.map((k) => {
     const v = params[k];
+    if (Array.isArray(v) && PG_ARRAY_PARAMS.has(k)) return pgArray(v);
     return v !== null && typeof v === "object" ? JSON.stringify(v) : v;
   });
   const args = keys.map((k, i) => `${k} => $${i + 1}`).join(", ");

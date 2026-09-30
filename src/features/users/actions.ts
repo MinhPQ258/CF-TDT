@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
 import { currentAdmin } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { backend } from "@/lib/backend";
 import { fail, ok, zodFieldErrors, type ActionState } from "@/lib/action";
 import { log } from "@/lib/log";
 import { createAccount, createAccountSchema, generateTempPassword, type CreatedAccount } from "./service";
@@ -36,7 +36,7 @@ export async function setUserStatusAction(_prev: ActionState, formData: FormData
   const { user_id, status, reason } = parsed.data;
   const r = await callRpc("admin_set_user_status", { p_user_id: user_id, p_status: status, p_reason: reason });
   if (!r.ok) return fail(r.error);
-  const { error } = await createAdminClient().auth.admin.updateUserById(user_id, { ban_duration: status === "DISABLED" ? "876000h" : "none" });
+  const { error } = await (await backend()).admin.updateUser(user_id, { banned: status === "DISABLED" });
   revalidatePath("/admin/users");
   if (error) {
     log("error", { request_id: (await headers()).get("x-request-id"), action: "user.ban", code: "AUTH_BAN_FAILED", detail: error.message, params: { user_id, status } });
@@ -66,7 +66,7 @@ export async function resetPasswordAction(_prev: ActionState, formData: FormData
   const id = z.string().uuid().safeParse(formData.get("user_id"));
   if (!id.success) return fail("Tài khoản không hợp lệ");
   const temp = generateTempPassword();
-  const { error } = await createAdminClient().auth.admin.updateUserById(id.data, { password: temp });
+  const { error } = await (await backend()).admin.updateUser(id.data, { password: temp });
   if (error) {
     log("warn", { request_id: (await headers()).get("x-request-id"), action: "user.reset_password", code: error.code ?? "error", params: { user_id: id.data } });
     return fail("Không đặt lại được mật khẩu");

@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
+import { backend } from "@/lib/backend";
 import { toAppError, type AppError } from "@/lib/errors";
 import { log } from "@/lib/log";
 
@@ -8,7 +8,7 @@ export type RpcResult<T> = { ok: true; data: T } | { ok: false; error: AppError 
 
 /** Hàm có ghi (tiền, tài khoản, import) — luôn log kết quả. Hàm đọc chỉ log khi lỗi. */
 const WRITE_PREFIXES = ["post_", "reverse_", "admin_create", "admin_set", "admin_upsert", "admin_mark",
-  "admin_publish", "admin_cancel", "close_", "cast_", "withdraw_", "import_stage", "import_commit",
+  "admin_publish", "admin_cancel", "admin_add", "close_", "cast_", "withdraw_", "import_stage", "import_commit",
   "import_discard", "complete_", "reconcile"];
 
 /**
@@ -17,13 +17,12 @@ const WRITE_PREFIXES = ["post_", "reverse_", "admin_create", "admin_set", "admin
 export async function callRpc<T = unknown>(fn: string, args: Record<string, unknown> = {}): Promise<RpcResult<T>> {
   const started = Date.now();
   const requestId = (await headers()).get("x-request-id");
-  const supabase = await createClient();
+  const be = await backend();
   const isWrite = WRITE_PREFIXES.some((p) => fn.startsWith(p));
   let userId: string | null = null;
   try {
-    const { data: claims } = await supabase.auth.getClaims();
-    userId = (claims?.claims?.sub as string | undefined) ?? null;
-    const { data, error } = await supabase.schema("api").rpc(fn, args);
+    userId = await be.currentUserId();
+    const { data, error } = await be.rpc(fn, args);
     if (error) {
       const appError = toAppError(error);
       const level = appError.code === "INVARIANT_VIOLATION" || appError.code === "UNKNOWN" ? "error" : "warn";

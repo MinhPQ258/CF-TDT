@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { backend } from "@/lib/backend";
 import { usernameToEmail } from "@/lib/env";
 import { callRpc } from "@/lib/rpc";
 import { fail, zodFieldErrors, type ActionState } from "@/lib/action";
@@ -27,9 +27,9 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   if (!parsed.success) return fail("Kiểm tra lại thông tin đăng nhập", zodFieldErrors(parsed.error.issues));
   const { username, password, next } = parsed.data;
   const requestId = (await headers()).get("x-request-id");
-  const supabase = await createClient();
+  const be = await backend();
 
-  const { error } = await supabase.auth.signInWithPassword({ email: usernameToEmail(username), password });
+  const { error } = await be.signIn(usernameToEmail(username), password);
   if (error) {
     log("warn", { request_id: requestId, action: "auth.login", code: error.code ?? "invalid_credentials", params: { username } });
     if (error.status === 429) return fail("Thử đăng nhập quá nhiều lần, đợi vài phút rồi thử lại");
@@ -39,18 +39,18 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
 
   const me = await callRpc<Me | null>("me");
   if (!me.ok || !me.data || me.data.status === "DISABLED") {
-    await supabase.auth.signOut();
+    await be.signOut();
     log("warn", { request_id: requestId, action: "auth.login", code: "ACCOUNT_DISABLED", params: { username } });
     return fail(me.ok && me.data ? "Tài khoản đã bị khóa, liên hệ quản trị" : "Tài khoản chưa được thiết lập, liên hệ quản trị");
   }
   log("info", { request_id: requestId, user_id: me.data.id, action: "auth.login", code: "OK" });
   if (me.data.must_change_password) redirect("/change-password");
-  redirect(safeNext(next));
+  // Thành viên ưu tiên mobile → Home vote; admin ưu tiên web → Đợt pha & vote
+  redirect(next && safeNext(next) !== "/" ? safeNext(next) : me.data.role === "ADMIN" ? "/admin/votes" : "/");
 }
 
 export async function logoutAction() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  await (await backend()).signOut();
   redirect("/login");
 }
 
@@ -70,12 +70,12 @@ export async function changePasswordAction(_prev: ActionState, formData: FormDat
   const me = await callRpc<Me | null>("me");
   if (!me.ok || !me.data) return fail({ code: "SESSION_EXPIRED", message: "Phiên đăng nhập đã hết hạn, hãy đăng nhập lại" });
 
-  const supabase = await createClient();
+  const be = await backend();
   // Xác thực lại bằng mật khẩu hiện tại trước khi đổi
-  const reauth = await supabase.auth.signInWithPassword({ email: usernameToEmail(me.data.username), password: parsed.data.current_password });
+  const reauth = await be.signIn(usernameToEmail(me.data.username), parsed.data.current_password);
   if (reauth.error) return fail("Mật khẩu hiện tại không đúng", { current_password: "Mật khẩu hiện tại không đúng" });
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.new_password });
+  const { error } = await be.updatePassword(parsed.data.new_password);
   if (error) {
     log("warn", { request_id: requestId, user_id: me.data.id, action: "auth.change_password", code: error.code ?? "error" });
     const weak = error.code === "weak_password" || /weak|short/i.test(error.message);
@@ -84,5 +84,5 @@ export async function changePasswordAction(_prev: ActionState, formData: FormDat
   }
   const done = await callRpc("complete_password_change");
   if (!done.ok) return fail(done.error);
-  redirect(me.data.role === "ADMIN" ? "/admin/dashboard" : "/me");
+  redirect(me.data.role === "ADMIN" ? "/admin/votes" : "/");
 }

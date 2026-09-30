@@ -11,9 +11,12 @@
     "test": "vitest run",
     "test:db": "vitest run tests/db",
     "test:unit": "vitest run tests/unit",
-    "db:bundle": "node scripts/build-sql.mjs"
+    "db:bundle": "node scripts/build-sql.mjs",
+    "dev:local": "node scripts/dev-local.mjs",
+    "local:reset": "node -e \"require('fs').rmSync('.local-db',{recursive:true,force:true});console.log('Đã xóa .local-db')\""
   },
   "dependencies": {
+    "@fontsource/be-vietnam-pro": "^5.3.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2",
     "exceljs": "^4.4.0",

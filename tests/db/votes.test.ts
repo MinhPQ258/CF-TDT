@@ -9,11 +9,14 @@ let today: string;
 
 const inMinutes = (m: number) => new Date(Date.now() + m * 60_000).toISOString();
 
-async function openSession(name = "Sáng") {
+async function openSession(name = "Sáng", extra: Record<string, unknown> = {}) {
   return rpc(db, admin.id, "admin_create_vote_session", {
     p_name: name, p_service_date: today, p_opens_at: inMinutes(-10), p_cutoff_at: inMinutes(60),
+    p_styles: ["Phin", "Máy", "Cold brew"], p_addons: ["Sữa đặc", "Đường", "Đá"], ...extra,
   });
 }
+
+const opt = (s: any, kind: "styles" | "addons", label: string) => s.options[kind].find((o: any) => o.label === label).id as string;
 
 /** Đợt đã quá giờ chốt: API không cho tạo nên chèn trực tiếp. */
 async function pastSession() {
@@ -24,6 +27,13 @@ async function pastSession() {
   return r.rows[0].id;
 }
 
+function vote(user: TestUser, s: any, style: string, addons: string[] = [], cups = 1) {
+  return rpc(db, user.id, "cast_vote", {
+    p_session_id: s.id, p_choice: "YES", p_style_option_id: opt(s, "styles", style),
+    p_addon_ids: addons.map((x) => opt(s, "addons", x)), p_cups: cups,
+  });
+}
+
 beforeEach(async () => {
   db = await createDb();
   today = await vnToday(db);
@@ -32,38 +42,112 @@ beforeEach(async () => {
   b = await createUser(db, { code: "B002", username: "binh", name: "Bình" });
 });
 
-describe("vote", () => {
-  test("vote / sửa / rút trước giờ chốt; kết quả có tên; không sinh ledger", async () => {
-    const s = await openSession();
-    expect(s.state).toBe("OPEN");
-    await rpc(db, a.id, "cast_vote", { p_session_id: s.id, p_choice: "YES", p_coffee_type: "PHIN", p_cups: 2 });
-    await rpc(db, b.id, "cast_vote", { p_session_id: s.id, p_choice: "NO" });
-    let d = await rpc(db, a.id, "vote_session_detail", { p_session_id: s.id });
-    expect(d).toMatchObject({ yes_count: 1, no_count: 1, cups_total: 2 });
-    expect(d.votes.map((v: any) => v.display_name).sort()).toEqual(["Anh", "Bình"]);
-    expect(d.by_type.PHIN).toEqual({ people: 1, cups: 2 });
-    expect(d.my_vote.choice).toBe("YES");
+describe("tạo đợt với lựa chọn tùy ý", () => {
+  test("kiểu pha + đồ đi kèm theo thứ tự nhập; bỏ trùng, trim", async () => {
+    const s = await openSession("Sáng", { p_styles: [" Phin ", "phin", "Máy"], p_addons: ["Đá", "", "Sữa đặc"] });
+    expect(s.options.styles.map((o: any) => o.label)).toEqual(["Phin", "Máy"]);
+    expect(s.options.addons.map((o: any) => o.label)).toEqual(["Đá", "Sữa đặc"]);
+    expect(s.allow_cups).toBe(true);
+  });
 
-    await rpc(db, a.id, "cast_vote", { p_session_id: s.id, p_choice: "YES", p_coffee_type: "MACHINE", p_cups: 1 });
-    d = await rpc(db, a.id, "vote_session_detail", { p_session_id: s.id });
-    expect(d.cups_total).toBe(1);
-    expect(d.by_type.MACHINE).toEqual({ people: 1, cups: 1 });
+  test("không truyền lựa chọn → chép đợt gần nhất; không có đợt nào → Phin, Máy", async () => {
+    const first = await rpc(db, admin.id, "admin_create_vote_session", {
+      p_name: "Đầu tiên", p_service_date: today, p_opens_at: inMinutes(-5), p_cutoff_at: inMinutes(30) });
+    expect(first.options.styles.map((o: any) => o.label)).toEqual(["Phin", "Máy"]);
+    const custom = await openSession("Custom", { p_allow_cups: false });
+    const copied = await rpc(db, admin.id, "admin_create_vote_session", {
+      p_name: "Chép", p_service_date: today, p_opens_at: inMinutes(-5), p_cutoff_at: inMinutes(30), p_copy_from: custom.id });
+    expect(copied.options.styles.map((o: any) => o.label)).toEqual(["Phin", "Máy", "Cold brew"]);
+    expect(copied.options.addons.map((o: any) => o.label)).toEqual(["Sữa đặc", "Đường", "Đá"]);
+    expect(copied.allow_cups).toBe(false);
+    const templates = await rpc(db, admin.id, "admin_vote_templates");
+    expect(templates[0].name).toBe("Chép");
+  });
+
+  test("danh sách kiểu pha rỗng / quá dài / quá nhiều → INVALID_INPUT", async () => {
+    await expectCode(openSession("x", { p_styles: [] }), "INVALID_INPUT");
+    await expectCode(openSession("x", { p_styles: ["x".repeat(41)] }), "INVALID_INPUT");
+    await expectCode(openSession("x", { p_styles: Array.from({ length: 11 }, (_, i) => `K${i}`) }), "INVALID_INPUT");
+  });
+
+  test("thêm / ẩn lựa chọn: chưa ai chọn thì xóa hẳn, đã có người chọn thì ẩn; phải giữ ≥1 kiểu pha", async () => {
+    const s = await openSession();
+    let o = await rpc(db, admin.id, "admin_add_vote_option", { p_session_id: s.id, p_kind: "ADDON", p_label: "Kem cheese" });
+    expect(o.addons.map((x: any) => x.label)).toContain("Kem cheese");
+    await expectCode(rpc(db, admin.id, "admin_add_vote_option", { p_session_id: s.id, p_kind: "ADDON", p_label: "kem CHEESE" }), "DUPLICATE_REFERENCE");
+    await vote(a, s, "Phin", ["Đá"]);
+    o = await rpc(db, admin.id, "admin_set_vote_option_hidden", { p_option_id: opt(s, "addons", "Đá"), p_hidden: true });
+    expect(o.addons.find((x: any) => x.label === "Đá").hidden).toBe(true);
+    o = await rpc(db, admin.id, "admin_set_vote_option_hidden", { p_option_id: opt(s, "addons", "Đường"), p_hidden: true });
+    expect(o.addons.find((x: any) => x.label === "Đường")).toBeUndefined();
+    // phiếu cũ vẫn giữ Đá; phiếu mới không chọn được Đá nữa
+    const d = await rpc(db, a.id, "vote_session_detail", { p_session_id: s.id });
+    expect(d.my_vote.addon_labels).toEqual(["Đá"]);
+    await expectCode(vote(b, s, "Phin", ["Đá"]), "INVALID_INPUT");
+    await rpc(db, admin.id, "admin_set_vote_option_hidden", { p_option_id: opt(s, "styles", "Máy"), p_hidden: true });
+    await rpc(db, admin.id, "admin_set_vote_option_hidden", { p_option_id: opt(s, "styles", "Cold brew"), p_hidden: true });
+    await expectCode(rpc(db, admin.id, "admin_set_vote_option_hidden", { p_option_id: opt(s, "styles", "Phin"), p_hidden: true }), "INVALID_INPUT");
+    await expectCode(rpc(db, a.id, "admin_add_vote_option", { p_session_id: s.id, p_kind: "STYLE", p_label: "x" }), "INSUFFICIENT_PERMISSION");
+  });
+
+  test("kéo dài giờ chốt; không sửa đợt đã chốt", async () => {
+    const s = await openSession();
+    const later = inMinutes(120);
+    const r = await rpc(db, admin.id, "admin_set_vote_cutoff", { p_session_id: s.id, p_cutoff_at: later });
+    expect(new Date(r.cutoff_at).getTime()).toBe(new Date(later).getTime());
+    const old = await pastSession();
+    await expectCode(rpc(db, admin.id, "admin_set_vote_cutoff", { p_session_id: old, p_cutoff_at: later }), "VOTE_CLOSED");
+    await expectCode(rpc(db, admin.id, "admin_set_vote_cutoff", { p_session_id: s.id, p_cutoff_at: inMinutes(-1) }), "INVALID_INPUT");
+  });
+});
+
+describe("vote", () => {
+  test("vote / sửa / rút trước giờ chốt; đếm theo lựa chọn; kết quả có tên; không sinh ledger", async () => {
+    const s = await openSession();
+    await vote(a, s, "Phin", ["Sữa đặc", "Đá"], 2);
+    await vote(b, s, "Máy", ["Đá"]);
+    let d = await rpc(db, a.id, "vote_session_detail", { p_session_id: s.id });
+    expect(d).toMatchObject({ yes_count: 2, no_count: 0, cups_total: 3 });
+    expect(d.by_style).toEqual([{ label: "Phin", people: 1, cups: 2 }, { label: "Máy", people: 1, cups: 1 }]);
+    expect(d.by_addon).toEqual([{ label: "Đá", people: 2 }, { label: "Sữa đặc", people: 1 }]);
+    expect(d.votes.map((v: any) => v.display_name).sort()).toEqual(["Anh", "Bình"]);
+    expect(d.my_vote).toMatchObject({ choice: "YES", style_label: "Phin", addon_labels: ["Sữa đặc", "Đá"], cups: 2 });
+    expect(d.not_voted).toBeNull(); // chỉ admin thấy
+
+    // sửa: đổi kiểu, bỏ hết đồ đi kèm
+    await vote(a, s, "Cold brew", [], 1);
+    d = await rpc(db, admin.id, "vote_session_detail", { p_session_id: s.id });
+    expect(d.by_addon).toEqual([{ label: "Đá", people: 1 }]);
+    expect(d.not_voted.map((x: any) => x.employee_code)).toEqual(["Z900"]);
 
     await rpc(db, a.id, "withdraw_vote", { p_session_id: s.id });
     d = await rpc(db, a.id, "vote_session_detail", { p_session_id: s.id });
-    expect(d.yes_count).toBe(0);
+    expect(d.yes_count).toBe(1);
     expect(d.my_vote).toBeNull();
-    // rút phiếu giữ dòng để audit
     expect((await db.query(`select * from votes where user_id = $1 and is_withdrawn`, [a.id])).rows).toHaveLength(1);
     expect(await balances(db)).toEqual({ cash: 0, member: 0 });
   });
 
-  test("YES thiếu số cốc / NO kèm số cốc bị bỏ", async () => {
+  test("Không uống: bỏ kiểu pha, đồ kèm, số cốc", async () => {
     const s = await openSession();
-    await expectCode(rpc(db, a.id, "cast_vote", { p_session_id: s.id, p_choice: "YES", p_coffee_type: "PHIN", p_cups: null }), "INVALID_INPUT");
-    await expectCode(rpc(db, a.id, "cast_vote", { p_session_id: s.id, p_choice: "YES", p_coffee_type: "PHIN", p_cups: 21 }), "INVALID_INPUT");
-    const r = await rpc(db, a.id, "cast_vote", { p_session_id: s.id, p_choice: "NO", p_coffee_type: "PHIN", p_cups: 3 });
-    expect(r.my_vote).toMatchObject({ choice: "NO", cups: null, coffee_type: null });
+    await vote(a, s, "Phin", ["Đá"]);
+    const r = await rpc(db, a.id, "cast_vote", { p_session_id: s.id, p_choice: "NO", p_style_option_id: opt(s, "styles", "Phin"), p_cups: 3 });
+    expect(r.my_vote).toMatchObject({ choice: "NO", cups: null, style_option_id: null, addon_ids: [] });
+  });
+
+  test("lựa chọn của đợt khác / thiếu kiểu pha / số cốc sai → INVALID_INPUT", async () => {
+    const s1 = await openSession("S1");
+    const s2 = await openSession("S2");
+    await expectCode(rpc(db, a.id, "cast_vote", { p_session_id: s1.id, p_choice: "YES", p_style_option_id: opt(s2, "styles", "Phin") }), "INVALID_INPUT");
+    await expectCode(rpc(db, a.id, "cast_vote", { p_session_id: s1.id, p_choice: "YES" }), "INVALID_INPUT");
+    await expectCode(rpc(db, a.id, "cast_vote", { p_session_id: s1.id, p_choice: "YES", p_style_option_id: opt(s1, "styles", "Phin"),
+      p_addon_ids: [opt(s2, "addons", "Đá")] }), "INVALID_INPUT");
+    await expectCode(vote(a, s1, "Phin", [], 21), "INVALID_INPUT");
+    // đợt không cho nhập số cốc → cups null, tính 1 cốc
+    const s3 = await openSession("S3", { p_allow_cups: false });
+    const r = await vote(a, s3, "Phin", [], 5);
+    expect(r.my_vote.cups).toBeNull();
+    expect(r.cups_total).toBe(1);
   });
 
   test("sau giờ chốt → VOTE_CLOSED; trước giờ mở → VOTE_NOT_OPEN", async () => {
@@ -82,8 +166,9 @@ describe("vote", () => {
     await rpc(db, a.id, "cast_vote", { p_session_id: s1.id, p_choice: "NO" });
     const closed = await rpc(db, admin.id, "close_vote_early", { p_session_id: s1.id });
     expect(closed.state).toBe("CLOSED");
-    await expectCode(rpc(db, a.id, "cast_vote", { p_session_id: s1.id, p_choice: "YES", p_coffee_type: "PHIN", p_cups: 1 }), "VOTE_CLOSED");
+    await expectCode(vote(a, s1, "Phin"), "VOTE_CLOSED");
     await expectCode(rpc(db, admin.id, "close_vote_early", { p_session_id: s1.id }), "VOTE_CLOSED");
+    await expectCode(rpc(db, admin.id, "admin_add_vote_option", { p_session_id: s1.id, p_kind: "ADDON", p_label: "x" }), "VOTE_CLOSED");
 
     await expectCode(rpc(db, admin.id, "admin_cancel_vote_session", { p_session_id: s2.id, p_reason: "" }), "INVALID_INPUT");
     await rpc(db, admin.id, "admin_cancel_vote_session", { p_session_id: s2.id, p_reason: "hết hạt" });
@@ -96,6 +181,7 @@ describe("vote", () => {
     const draft = await rpc(db, admin.id, "admin_create_vote_session", {
       p_name: "Nháp", p_service_date: today, p_opens_at: inMinutes(-5), p_cutoff_at: inMinutes(30), p_publish: false });
     expect(await rpc(db, a.id, "list_vote_sessions", {})).toEqual([]);
+    expect((await rpc(db, a.id, "home")).sessions).toEqual([]);
     await expectCode(rpc(db, a.id, "vote_session_detail", { p_session_id: draft.id }), "INVALID_INPUT");
     await expectCode(rpc(db, a.id, "cast_vote", { p_session_id: draft.id, p_choice: "NO" }), "INVALID_INPUT");
     await rpc(db, admin.id, "admin_publish_vote_session", { p_session_id: draft.id });
@@ -105,15 +191,49 @@ describe("vote", () => {
   });
 
   test("giờ chốt ≤ giờ mở hoặc đã qua → INVALID_INPUT", async () => {
-    await expectCode(rpc(db, admin.id, "admin_create_vote_session", {
-      p_name: "x", p_service_date: today, p_opens_at: inMinutes(10), p_cutoff_at: inMinutes(5) }), "INVALID_INPUT");
-    await expectCode(rpc(db, admin.id, "admin_create_vote_session", {
-      p_name: "x", p_service_date: today, p_opens_at: inMinutes(-10), p_cutoff_at: inMinutes(-5) }), "INVALID_INPUT");
+    await expectCode(openSession("x", { p_opens_at: inMinutes(10), p_cutoff_at: inMinutes(5) }), "INVALID_INPUT");
+    await expectCode(openSession("x", { p_opens_at: inMinutes(-10), p_cutoff_at: inMinutes(-5) }), "INVALID_INPUT");
   });
 
   test("mọi tài khoản ACTIVE được vote kể cả không thuộc quỹ (7A)", async () => {
     const s = await openSession();
-    const r = await rpc(db, admin.id, "cast_vote", { p_session_id: s.id, p_choice: "YES", p_coffee_type: "UNDECIDED", p_cups: 1 });
+    const r = await vote(admin, s, "Máy");
     expect(r.yes_count).toBe(1);
+  });
+
+  test("đợt cũ không có lựa chọn vẫn vote bằng coffee_type", async () => {
+    const id = (await db.query<{ id: string }>(
+      `insert into vote_sessions (name, service_date, opens_at, cutoff_at, status, created_by)
+       values ('Legacy', $1, now() - interval '5 minutes', now() + interval '1 hour', 'PUBLISHED', $2) returning id`,
+      [today, admin.id])).rows[0].id;
+    const r = await rpc(db, a.id, "cast_vote", { p_session_id: id, p_choice: "YES", p_coffee_type: "PHIN", p_cups: 2 });
+    expect(r.my_vote).toMatchObject({ style_label: "Phin", cups: 2 });
+  });
+});
+
+describe("home", () => {
+  test("đợt đang mở + điền sẵn từ phiếu gần nhất theo tên lựa chọn", async () => {
+    const s1 = await openSession("Hôm qua");
+    await vote(a, s1, "Phin", ["Sữa đặc", "Đá"], 2);
+    const s2 = await openSession("Hôm nay", { p_styles: ["Máy", "Phin"], p_addons: ["Đá", "Sữa tươi"] });
+    const h = await rpc(db, a.id, "home");
+    const today2 = h.sessions.find((x: any) => x.id === s2.id);
+    expect(today2.prefill).toMatchObject({ choice: "YES", cups: 2, style_option_id: opt(s2, "styles", "Phin") });
+    expect(today2.prefill.addon_ids).toEqual([opt(s2, "addons", "Đá")]); // Sữa đặc không còn trong đợt mới → bỏ
+    expect(today2.my_vote).toBeNull();
+    const mine = h.sessions.find((x: any) => x.id === s1.id);
+    expect(mine.my_vote.style_label).toBe("Phin");
+    // người chưa vote bao giờ: không có prefill
+    expect((await rpc(db, b.id, "home")).sessions[0].prefill).toBeNull();
+  });
+
+  test("không có đợt mở: last_closed và next", async () => {
+    await pastSession();
+    await rpc(db, admin.id, "admin_create_vote_session", {
+      p_name: "Mai", p_service_date: today, p_opens_at: inMinutes(60 * 20), p_cutoff_at: inMinutes(60 * 21) });
+    const h = await rpc(db, a.id, "home");
+    expect(h.sessions).toEqual([]);
+    expect(h.last_closed.name).toBe("Cũ");
+    expect(h.next.name).toBe("Mai");
   });
 });

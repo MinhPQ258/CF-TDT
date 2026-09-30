@@ -2,9 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
-import { COFFEE_TYPE_LABEL } from "@/lib/labels";
 import type { VoteSession } from "@/lib/types";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { VoteStateBadge, VoteWhen } from "@/components/vote-bits";
 
 export const metadata: Metadata = { title: "Vote pha chung" };
@@ -17,7 +16,7 @@ export default async function VotesPage() {
 
   return (
     <>
-      <PageHeader title="Vote pha chung" subtitle="Vote là ý định uống, không phát sinh tiền." />
+      <PageHeader title="Các đợt pha" subtitle="Vote là ý định uống, không phát sinh tiền." actions={<LinkButton href="/" variant="primary">Vote đợt đang mở</LinkButton>} />
       <h2 className="mb-2 text-lg font-semibold">Đang mở / sắp mở</h2>
       {open.length === 0 ? (
         <EmptyState title="Chưa có đợt vote nào đang mở">
@@ -39,7 +38,7 @@ export default async function VotesPage() {
 function SessionCard({ s }: { s: VoteSession }) {
   return (
     <li>
-      <Link href={`/votes/${s.id}`} className="block rounded-xl focus-visible:outline-offset-4">
+      <Link href={s.state === "OPEN" ? `/?s=${s.id}` : `/votes/${s.id}`} className="block rounded-xl focus-visible:outline-offset-4">
         <Card className="h-full hover:border-brand">
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 truncate font-semibold">{s.name}</p>
@@ -51,7 +50,7 @@ function SessionCard({ s }: { s: VoteSession }) {
           </p>
           <p className="mt-1 text-sm">
             {s.my_vote
-              ? <>Phiếu của bạn: <strong>{s.my_vote.choice === "YES" ? `Uống ${s.my_vote.cups} cốc (${COFFEE_TYPE_LABEL[s.my_vote.coffee_type ?? "UNDECIDED"]})` : "Không uống"}</strong></>
+              ? <>Phiếu của bạn: <strong>{s.my_vote.choice === "YES" ? [s.my_vote.style_label, s.my_vote.cups ? `${s.my_vote.cups} cốc` : null].filter(Boolean).join(" · ") : "Không uống"}</strong></>
               : s.state === "OPEN" ? <span className="font-medium text-brand">Bạn chưa vote →</span> : <span className="text-muted">Bạn không vote</span>}
           </p>
         </Card>

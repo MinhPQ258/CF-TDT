@@ -3,7 +3,7 @@ import { randomInt } from "node:crypto";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { backend } from "@/lib/backend";
 import { usernameToEmail } from "@/lib/env";
 import { fail, type ActionState } from "@/lib/action";
 import { log } from "@/lib/log";
@@ -37,24 +37,22 @@ export interface CreatedAccount {
  */
 export async function createAccount(input: z.infer<typeof createAccountSchema>): Promise<{ ok: true; account: CreatedAccount } | { ok: false; state: ActionState<never> }> {
   const requestId = (await headers()).get("x-request-id");
-  const admin = createAdminClient();
+  const be = await backend();
   const temp = generateTempPassword();
-  const { data, error } = await admin.auth.admin.createUser({
-    email: usernameToEmail(input.username), password: temp, email_confirm: true,
-    user_metadata: { username: input.username, display_name: input.display_name },
-  });
-  if (error || !data.user) {
+  const { id: userId, error } = await be.admin.createUser(usernameToEmail(input.username), temp,
+    { username: input.username, display_name: input.display_name });
+  if (error || !userId) {
     log("warn", { request_id: requestId, action: "user.create.auth", code: error?.code ?? "error", params: { username: input.username } });
     const exists = error?.code === "email_exists" || /already|registered|exists/i.test(error?.message ?? "");
     return { ok: false, state: fail(exists ? "Username đã tồn tại" : "Không tạo được tài khoản đăng nhập", exists ? { username: "Username đã tồn tại" } : undefined) };
   }
   const r = await callRpc("admin_create_profile", {
-    p_user_id: data.user.id, p_employee_code: input.employee_code, p_username: input.username,
+    p_user_id: userId, p_employee_code: input.employee_code, p_username: input.username,
     p_display_name: input.display_name, p_role: input.role,
   });
   if (!r.ok) {
-    const del = await admin.auth.admin.deleteUser(data.user.id);
-    if (del.error) log("error", { request_id: requestId, action: "user.create.compensate", code: "DELETE_FAILED", detail: del.error.message, params: { user_id: data.user.id } });
+    const del = await be.admin.deleteUser(userId);
+    if (del.error) log("error", { request_id: requestId, action: "user.create.compensate", code: "DELETE_FAILED", detail: del.error.message, params: { user_id: userId } });
     const field: Record<string, string> | undefined = r.error.detail === "employee_code" ? { employee_code: "Mã NV đã tồn tại" } : r.error.detail === "username" ? { username: "Username đã tồn tại" } : undefined;
     return { ok: false, state: fail(r.error, field) };
   }

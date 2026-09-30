@@ -12,7 +12,7 @@ export interface ExportData {
   gifts: { occurred_on: string; amount_vnd: number; share_count: number | null; external_ref: string | null; kind: string; status: string; note: string | null }[];
   purchases: { occurred_on: string; external_ref: string | null; shop: string | null; paid_by: string; payer: string | null; total_vnd: number; employee_code: string; display_name: string; entry_type: keyof typeof ENTRY_TYPE_LABEL; amount_vnd: number; is_reversal: boolean }[];
   purchase_lines: { purchased_on: string; external_ref: string | null; line_no: number; line_type: string; item_name: string; quantity: number | null; unit: string | null; line_amount_vnd: number }[];
-  votes: { service_date: string; session: string; state: string; employee_code: string; display_name: string; choice: string; coffee_type: string | null; cups: number | null; note: string | null }[];
+  votes: { service_date: string; session: string; state: string; employee_code: string; display_name: string; choice: string; coffee_type: string | null; style?: string | null; addons?: string[]; cups: number | null; note: string | null }[];
 }
 
 export const EXPORT_SHEETS = ["Tong_quan", "So_du_theo_nguoi", "Tien_nop", "Tien_cho_them", "Mua_do_va_phan_bo", "Vote"] as const;
@@ -102,9 +102,9 @@ export async function buildExport(d: ExportData): Promise<Buffer> {
   const v = sheet(wb, "Vote", [
     { header: "Ngày", key: "d", width: 12 }, { header: "Đợt", key: "s", width: 20 }, { header: "Trạng thái", key: "st", width: 12 },
     { header: "Mã NV", key: "code", width: 10 }, { header: "Tên", key: "name", width: 22 }, { header: "Uống", key: "c", width: 8 },
-    { header: "Loại pha", key: "t", width: 12 }, { header: "Số cốc", key: "cups", width: 8 }, { header: "Ghi chú", key: "n", width: 24 },
+    { header: "Kiểu pha", key: "t", width: 14 }, { header: "Đồ đi kèm", key: "a", width: 28 }, { header: "Số cốc", key: "cups", width: 8 }, { header: "Ghi chú", key: "n", width: 24 },
   ]);
-  for (const r of d.votes) v.addRow({ d: r.service_date, s: r.session, st: r.state, code: r.employee_code, name: r.display_name, c: r.choice === "YES" ? "Có" : "Không", t: r.coffee_type, cups: r.cups, n: r.note });
+  for (const r of d.votes) v.addRow({ d: r.service_date, s: r.session, st: r.state, code: r.employee_code, name: r.display_name, c: r.choice === "YES" ? "Có" : "Không", t: r.style ?? r.coffee_type, a: (r.addons ?? []).join(", "), cups: r.cups, n: r.note });
 
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
