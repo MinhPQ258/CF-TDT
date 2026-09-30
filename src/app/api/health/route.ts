@@ -51,22 +51,27 @@ export async function GET() {
   else if (apiCode === "PGRST202") problems.push("Chưa có hàm api.me — chưa chạy coffee_tdt_full.sql");
   else if (!apiExposed) problems.push(`Data API trả mã ${apiCode}`);
   // Hàm tiêu biểu của từng migration: anon gọi → 42501 = có hàm; PGRST202 = chưa chạy migration đó
-  const MIGRATION_PROBES: Record<string, string> = {
-    "000008_api_votes": "list_vote_sessions",
-    "000010_api_import": "import_list_jobs",
-    "000012_vote_options": "admin_vote_templates",
+  // [tên hàm, tham số] — tham số phải khớp chữ ký để PostgREST tìm thấy hàm
+  const MIGRATION_PROBES: Record<string, [string, Record<string, unknown>]> = {
+    "000008_api_votes": ["list_vote_sessions", {}],
+    "000010_api_import": ["import_list_jobs", {}],
+    "000012_vote_options": ["admin_vote_templates", {}],
+    "000013_member_create_vote": ["vote_templates", {}],
+    "000014_proxy_vote": ["vote_people", { p_session_id: null }],
+    "000015_update_vote_session": ["admin_update_vote_session", { p_session_id: null, p_name: null, p_service_date: null,
+      p_opens_at: null, p_cutoff_at: null, p_allow_cups: null, p_styles: null, p_addons: null }],
   };
   const migrations: Record<string, boolean | string> = {};
   if (apiExposed) {
-    await Promise.all(Object.entries(MIGRATION_PROBES).map(async ([name, fn]) => {
+    await Promise.all(Object.entries(MIGRATION_PROBES).map(async ([name, [fn, args]]) => {
       const r = await probe(`${url}/rest/v1/rpc/${fn}`, {
-        method: "POST", headers: { ...headers, "Content-Type": "application/json", "Content-Profile": "api" }, body: "{}",
+        method: "POST", headers: { ...headers, "Content-Type": "application/json", "Content-Profile": "api" }, body: JSON.stringify(args),
       });
       const code = "status" in r ? (r.body?.code ?? String(r.status)) : `network: ${r.error}`;
       migrations[name] = code === "42501" ? true : code === "PGRST202" ? false : code;
     }));
     const missing = Object.entries(migrations).filter(([, v]) => v !== true).map(([k]) => k);
-    if (missing.length) problems.push(`DB thiếu migration: ${missing.join(", ")} — chạy file nâng cấp trong supabase/deploy/`);
+    if (missing.length) problems.push(`DB thiếu migration: ${missing.join(", ")} — chạy supabase/deploy/upgrade_013_016.sql trong SQL Editor`);
   }
   if (authOk && "body" in auth && auth.body?.mailer_autoconfirm === false) {
     problems.push("Confirm email đang bật: user tạo trong Dashboard phải tick Auto Confirm");

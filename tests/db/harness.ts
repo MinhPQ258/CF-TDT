@@ -27,10 +27,11 @@ grant usage on schema public to anon, authenticated, service_role;
 
 export type Db = PGlite;
 
-export async function createDb(): Promise<Db> {
+/** upTo: chỉ chạy migration có tên <= upTo (để thử file nâng cấp trên DB cũ) */
+export async function createDb(opts: { upTo?: string } = {}): Promise<Db> {
   const db = await PGlite.create({ extensions: { btree_gist } });
   await db.exec(SUPABASE_SHIM);
-  const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort();
+  const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql") && (!opts.upTo || f <= opts.upTo)).sort();
   for (const f of files) {
     try {
       await db.exec(readFileSync(join(MIGRATIONS_DIR, f), "utf8"));

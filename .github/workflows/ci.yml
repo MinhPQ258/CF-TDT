@@ -1,7 +1,7 @@
-name: CI / Deploy
+name: CI
 
-# PR: kiểm tra. Push lên main (hoặc chạy tay): kiểm tra → migration Supabase → deploy Vercel.
-# Migration chạy TRƯỚC deploy để code mới không chạy trên DB cũ. Vercel không tự deploy main (vercel.json).
+# Kiểm tra mỗi PR / push lên main. Deploy do Vercel tự làm khi push main.
+# Migration DB chạy TAY trước khi push (Supabase SQL Editor, file trong supabase/deploy/) — xem README.
 on:
   pull_request:
   push:
@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -35,53 +35,3 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
 
-  migrate:
-    needs: check
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    environment: production
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Kiểm tra secrets
-        run: |
-          missing=""
-          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_ID; do
-            [ -n "${!v}" ] || missing="$missing $v"
-          done
-          if [ -n "$missing" ]; then
-            echo "::error::Thiếu GitHub secret:$missing — xem README mục Auto migration. Không migrate, không deploy."
-            exit 1
-          fi
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-      - name: Link project production
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
-      - name: Baseline — đánh dấu migration đã dựng tay trước đây (idempotent)
-        run: |
-          versions=$(grep -E '^[0-9]{14}$' supabase/baseline-production.txt | tr '\n' ' ')
-          supabase migration repair --status applied $versions --yes
-      - name: Migration sẽ chạy
-        run: supabase migration list
-      - name: Chạy migration mới
-        run: supabase db push --yes
-
-  deploy:
-    needs: migrate
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Gọi Vercel Deploy Hook (production)
-        env:
-          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        run: |
-          if [ -z "$HOOK" ]; then
-            echo "::error::Thiếu secret VERCEL_DEPLOY_HOOK_URL — migration đã chạy, nhưng chưa deploy app."
-            exit 1
-          fi
-          curl -fsS -X POST "$HOOK"
-          echo "Đã yêu cầu Vercel deploy commit ${GITHUB_SHA::7}"
