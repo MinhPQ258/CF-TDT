@@ -5,7 +5,7 @@ import { LOCAL_SESSION_COOKIE, verifySession } from "@/lib/backend/local-session
 // Middleware: làm mới phiên, gắn request_id, chặn tài khoản khóa, ép đổi mật khẩu, chặn /admin nếu không phải ADMIN.
 // Chế độ local (COFFEE_BACKEND=local): chỉ kiểm cookie ký; khóa TK / đổi MK / quyền admin do layout kiểm (lớp 2).
 
-const PUBLIC_PATHS = ["/login", "/api/cron"];
+const PUBLIC_PATHS = ["/login", "/api/cron", "/api/health"];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`));

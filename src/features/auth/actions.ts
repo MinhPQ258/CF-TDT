@@ -22,6 +22,17 @@ function safeNext(next: string | undefined): string {
   return next;
 }
 
+type LoginErrorKind = "invalid" | "rate_limited" | "not_confirmed" | "banned" | "system";
+
+/** Phân loại lỗi Supabase Auth: chỉ sai tên/mật khẩu mới gộp thành một thông báo chung */
+function loginErrorKind(e: { code?: string; status?: number; message: string }): LoginErrorKind {
+  if (e.status === 429 || e.code === "over_request_rate_limit") return "rate_limited";
+  if (e.code === "email_not_confirmed") return "not_confirmed";
+  if (e.code === "user_banned") return "banned";
+  if (e.code === "invalid_credentials" || /invalid login credentials/i.test(e.message)) return "invalid";
+  return "system";
+}
+
 export async function loginAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail("Kiểm tra lại thông tin đăng nhập", zodFieldErrors(parsed.error.issues));
@@ -29,19 +40,31 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   const requestId = (await headers()).get("x-request-id");
   const be = await backend();
 
-  const { error } = await be.signIn(usernameToEmail(username), password);
+  const email = usernameToEmail(username);
+  const { error } = await be.signIn(email, password);
   if (error) {
-    log("warn", { request_id: requestId, action: "auth.login", code: error.code ?? "invalid_credentials", params: { username } });
-    if (error.status === 429) return fail("Thử đăng nhập quá nhiều lần, đợi vài phút rồi thử lại");
-    // Không tiết lộ sai tên hay sai mật khẩu
+    const code = error.code ?? (error.status ? `http_${error.status}` : "unknown");
+    const kind = loginErrorKind(error);
+    log(kind === "system" ? "error" : "warn", { request_id: requestId, action: "auth.login", code,
+      detail: error.message, params: { username, email_domain: email.split("@")[1] } });
+    if (kind === "rate_limited") return fail("Thử đăng nhập quá nhiều lần, đợi vài phút rồi thử lại");
+    if (kind === "not_confirmed") return fail("Tài khoản chưa được kích hoạt, liên hệ quản trị");
+    if (kind === "banned") return fail("Tài khoản đã bị khóa, liên hệ quản trị");
+    if (kind === "system") return fail(`Không kết nối được hệ thống đăng nhập (mã ${code}). Liên hệ quản trị.`);
+    // Sai tên hoặc sai mật khẩu: không tiết lộ cái nào sai
     return fail("Sai tên đăng nhập hoặc mật khẩu");
   }
 
   const me = await callRpc<Me | null>("me");
-  if (!me.ok || !me.data || me.data.status === "DISABLED") {
+  if (!me.ok) {
     await be.signOut();
-    log("warn", { request_id: requestId, action: "auth.login", code: "ACCOUNT_DISABLED", params: { username } });
-    return fail(me.ok && me.data ? "Tài khoản đã bị khóa, liên hệ quản trị" : "Tài khoản chưa được thiết lập, liên hệ quản trị");
+    log("error", { request_id: requestId, action: "auth.login", code: `ME_${me.error.code}`, detail: me.error.detail, params: { username } });
+    return fail(`Không đọc được hồ sơ tài khoản (mã ${me.error.code}). Liên hệ quản trị.`);
+  }
+  if (!me.data || me.data.status === "DISABLED") {
+    await be.signOut();
+    log("warn", { request_id: requestId, action: "auth.login", code: me.data ? "ACCOUNT_DISABLED" : "NO_PROFILE", params: { username } });
+    return fail(me.data ? "Tài khoản đã bị khóa, liên hệ quản trị" : "Tài khoản chưa được thiết lập, liên hệ quản trị");
   }
   log("info", { request_id: requestId, user_id: me.data.id, action: "auth.login", code: "OK" });
   if (me.data.must_change_password) redirect("/change-password");
