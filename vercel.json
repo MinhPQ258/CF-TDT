@@ -1,4 +1,16 @@
 {
-  "regions": ["sin1"],
-  "crons": [{ "path": "/api/cron/reconcile", "schedule": "0 17 * * *" }]
+  "regions": [
+    "sin1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/reconcile",
+      "schedule": "0 17 * * *"
+    }
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  }
 }

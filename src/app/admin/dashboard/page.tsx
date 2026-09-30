@@ -40,7 +40,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <div className="mb-4"><PeriodFilter from={from} to={to} action="/admin/dashboard" /></div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Tiền quỹ thực còn" value={<Money value={ov.cash_balance_vnd} />} hint={`${ov.active_members} thành viên quỹ hôm nay`} tone={ov.cash_balance_vnd < 0 ? "danger" : undefined} />
+        <Stat label="Tiền quỹ thực còn" value={<Money value={ov.cash_balance_vnd} />} hint={`${ov.active_members} người chia quỹ`} tone={ov.cash_balance_vnd < 0 ? "danger" : undefined} />
         <Stat label="Chi phí phát sinh (kỳ)" value={<Money value={ov.costs_incurred_vnd} tone={false} />} hint="Mọi phiếu mua: quỹ trả + mua hộ" />
         <Stat label="Quỹ đã chi (kỳ)" value={<Money value={ov.fund_spent_vnd} tone={false} />} hint="Phiếu quỹ trả + hoàn tiền" />
         <Stat label="Cần nộp thêm" value={<Money value={ov.owing.total_vnd} tone={false} />} hint={`${ov.owing.people} người đang âm`} />
@@ -68,7 +68,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <Card title="Số dư từng người" className="mt-4" actions={<Link className="text-brand underline" href="/admin/reports">Báo cáo theo kỳ →</Link>}>
         {members.length === 0 ? (
-          <EmptyState title="Quỹ chưa có thành viên" action={<LinkButton href="/admin/memberships" variant="primary">Thêm thành viên quỹ</LinkButton>} />
+          <EmptyState title="Chưa có ai" action={<LinkButton href="/admin/users" variant="primary">Tạo tài khoản</LinkButton>} />
         ) : (
           <>
             <ul className="divide-y divide-line md:hidden">
@@ -76,7 +76,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 <li key={m.user_id} className="flex items-center justify-between gap-3 py-2">
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{m.display_name}</span>
-                    <span className="text-sm text-muted">{m.employee_code}{!m.is_member_today && " · đã rời quỹ"}</span>
+                    <span className="text-sm text-muted">{m.employee_code}{!m.is_member_today && " · đã khóa"}</span>
                   </span>
                   <span className="text-right">
                     <Money value={m.balance_now_vnd} sign className="font-semibold" />
@@ -92,7 +92,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   <tr key={m.user_id}>
                     <td>{m.employee_code}</td>
                     <td className="max-w-48 truncate">{m.display_name}</td>
-                    <td>{m.left_unsettled ? <Badge tone="warn">Rời, chưa tất toán</Badge> : m.is_member_today ? <Badge tone="ok">Thành viên</Badge> : <Badge>Đã rời</Badge>}</td>
+                    <td>{m.left_unsettled ? <Badge tone="warn">Khóa, chưa tất toán</Badge> : m.is_member_today ? <Badge tone="ok">Hoạt động</Badge> : <Badge>Đã khóa</Badge>}</td>
                     <td className="text-right"><Money value={m.movement.DEPOSIT_CREDIT} tone={false} /></td>
                     <td className="text-right"><Money value={m.movement.PURCHASE_CREDIT} tone={false} /></td>
                     <td className="text-right"><Money value={m.movement.GIFT_SHARE} tone={false} /></td>

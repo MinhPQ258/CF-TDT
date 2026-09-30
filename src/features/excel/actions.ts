@@ -76,7 +76,7 @@ export async function commitImportAction(input: { job_id: string; preview_hash: 
   if (!r.ok) return { ...fail(r.error), data: { status: "ERROR", accounts } };
   if (r.data.status === "STALE") return { ...fail({ code: "IMPORT_STALE", message: "Dữ liệu đã thay đổi sau khi xem trước, hãy xem lại preview" }), data: { status: "STALE", accounts } };
   if (r.data.status === "HAS_ERRORS") return { ...fail({ code: "IMPORT_HAS_ERRORS", message: "File còn dòng lỗi, sửa rồi tải lên lại" }), data: { status: "HAS_ERRORS", accounts } };
-  for (const p of ["/admin/fund", "/admin/dashboard", "/admin/memberships", "/admin/users", "/admin/purchases"]) revalidatePath(p);
+  for (const p of ["/admin/fund", "/admin/dashboard", "/admin/users", "/admin/purchases"]) revalidatePath(p);
   return ok({ status: "COMMITTED", documents: r.data.documents, accounts },
     r.data.replayed ? "File này đã được ghi trước đó" : `Đã ghi ${r.data.documents ?? 0} ${IMPORT_SPECS[job.data.kind as ImportKind].title.toLowerCase()}`);
 }

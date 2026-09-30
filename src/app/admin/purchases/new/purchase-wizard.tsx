@@ -168,7 +168,7 @@ export function PurchaseWizard({ payers }: { payers: { id: string; label: string
                 <Field label="Người mua hộ" htmlFor="payer" required hint="Được ghi có toàn bộ tổng phiếu và vẫn chịu phần chia của mình">
                   <Select id="payer" value={draft.payer_user_id} onChange={(e) => update({ payer_user_id: e.target.value })}>
                     <option value="">— Chọn —</option>
-                    {payers.map((p) => <option key={p.id} value={p.id}>{p.label}{p.member ? "" : " (không thuộc quỹ hôm nay)"}</option>)}
+                    {payers.map((p) => <option key={p.id} value={p.id}>{p.label}{p.member ? "" : " (đã khóa)"}</option>)}
                   </Select>
                 </Field>
               )}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { formatVnd } from "@/lib/money";
+import { BackButton } from "@/components/back-button";
 
 export function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
@@ -41,12 +42,23 @@ export function Card({ className, children, title, actions }: { className?: stri
   );
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
+/** back: đường dẫn trang cha — chỉ truyền cho màn mở ra sau khi điều hướng (màn chi tiết / màn con) */
+export function PageHeader({ title, subtitle, actions, back, backLabel, backMobileOnly, badge }: {
+  title: string; subtitle?: ReactNode; actions?: ReactNode; back?: string; backLabel?: string;
+  /** màn gốc trên desktop nhưng là màn con của tab Cài đặt trên mobile */
+  backMobileOnly?: boolean; badge?: ReactNode;
+}) {
   return (
     <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
+      <div className="flex min-w-0 items-start gap-1">
+        {back && <span className={backMobileOnly ? "lg:hidden" : undefined}><BackButton fallback={back} label={backLabel} /></span>}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold">{title}</h1>
+            {badge}
+          </div>
+          {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
+        </div>
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </header>

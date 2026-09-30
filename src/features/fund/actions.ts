@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
@@ -49,6 +50,56 @@ export async function postPersonMoneyAction(_prev: ActionState, formData: FormDa
   if (!r.ok) return fail(r.error, r.error.code === "FUTURE_DATE" ? { occurred_on: r.error.message } : r.error.code === "DUPLICATE_REFERENCE" ? { external_ref: r.error.message } : undefined);
   revalidateFund();
   return ok(r.data, r.data.replayed ? "Giao dịch này đã được ghi trước đó (không ghi trùng)" : v.kind === "DEPOSIT" ? "Đã ghi tiền nộp" : "Đã ghi hoàn tiền");
+}
+
+/** uuid ổn định cho từng người trong một lần nộp nhiều người → bấm lại không ghi trùng */
+function childKey(batch: string, userId: string): string {
+  const h = createHash("sha256").update(`${batch}:${userId}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+const bulkDepositSchema = z.object({
+  idem_key: z.string().uuid(),
+  user_ids: z.array(z.string().uuid()).min(1, "Chọn ít nhất 1 người nộp").max(200),
+  amount_vnd: amount,
+  occurred_on: date,
+  external_ref: optText(64),
+  note: optText(500),
+});
+
+export interface BulkDepositResult { done: number; replayed: number; failed: { user_id: string; message: string }[]; total_vnd: number }
+
+/** Nộp quỹ nhiều người cùng số tiền: mỗi người một giao dịch Tiền nộp */
+export async function postBulkDepositAction(input: {
+  idem_key: string; user_ids: string[]; amount_vnd: string; occurred_on: string; external_ref?: string; note?: string;
+}): Promise<ActionState<BulkDepositResult>> {
+  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  const parsed = bulkDepositSchema.safeParse(input);
+  if (!parsed.success) return fail("Kiểm tra lại thông tin", zodFieldErrors(parsed.error.issues));
+  const v = parsed.data;
+  const ids = [...new Set(v.user_ids)];
+  const res: BulkDepositResult = { done: 0, replayed: 0, failed: [], total_vnd: 0 };
+  for (const [i, uid] of ids.entries()) {
+    // Mã chứng từ không được trùng → nhiều người thì thêm hậu tố /1, /2…
+    const ref = v.external_ref && ids.length > 1 ? `${v.external_ref.slice(0, 60)}/${i + 1}` : v.external_ref;
+    const r = await callRpc<EventResult>("post_deposit", {
+      p_idem_key: childKey(v.idem_key, uid), p_user_id: uid, p_amount_vnd: v.amount_vnd, p_occurred_on: v.occurred_on,
+      p_external_ref: ref, p_note: v.note,
+    });
+    if (!r.ok) {
+      if (r.error.code === "FUTURE_DATE") return fail(r.error, { occurred_on: r.error.message });
+      res.failed.push({ user_id: uid, message: r.error.message });
+      continue;
+    }
+    if (r.data.replayed) res.replayed++;
+    else res.done++;
+    res.total_vnd += v.amount_vnd;
+  }
+  if (res.done + res.replayed > 0) revalidateFund();
+  if (res.failed.length > 0) {
+    return { ...fail(`Ghi được ${res.done + res.replayed}/${ids.length} người. ${res.failed.length} người lỗi: ${res.failed[0].message}`), data: res };
+  }
+  return ok(res, res.done === 0 ? "Các khoản này đã được ghi trước đó (không ghi trùng)" : `Đã ghi tiền nộp cho ${ids.length} người`);
 }
 
 export async function previewGiftAction(input: { amount_vnd: string; occurred_on: string }): Promise<ActionState<GiftPreview>> {

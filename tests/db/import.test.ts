@@ -13,10 +13,10 @@ const sum = (s: string) => s.padEnd(64, "0").slice(0, 64);
 beforeEach(async () => {
   db = await createDb();
   today = await vnToday(db);
-  admin = await createUser(db, { code: "Z900", username: "admin", role: "ADMIN" });
+  // Mọi tài khoản ACTIVE (kể cả admin) đều được chia → admin chính là người thứ 2 (binh).
   a = await createUser(db, { code: "A001", username: "anh" });
-  b = await createUser(db, { code: "B002", username: "binh" });
-  for (const u of [a, b]) await addMembership(db, u.id, addDays(today, -30));
+  admin = await createUser(db, { code: "B002", username: "binh", role: "ADMIN" });
+  b = admin;
 });
 
 function stage(kind: string, checksum: string, rows: object[]) {
@@ -59,11 +59,10 @@ describe("import Excel", () => {
     expect(job2.rows[0].errors).toContain("Mã chứng từ đã được ghi trước đó");
   });
 
-  test("membership đổi sau preview → STALE, không ghi; preview lại rồi commit được", async () => {
+  test("danh sách tài khoản ACTIVE đổi sau preview → STALE, không ghi; preview lại rồi commit được", async () => {
     const job = await stage("GIFTS", sum("c1"), [{ row_no: 2, external_ref: "QUA1", occurred_on: today, amount_vnd: 30000 }]);
     expect(job.rows[0].normalized.split).toEqual({ n: 2, base_share_vnd: 15000, remainder: 0 });
-    const c = await createUser(db, { code: "C003", username: "chi" });
-    await addMembership(db, c.id, today);
+    const c = await createUser(db, { code: "C003", username: "chi" }); // tài khoản mới ACTIVE → được chia
     const r = await rpc(db, admin.id, "import_commit", { p_job_id: job.id, p_preview_hash: job.preview_hash });
     expect(r.status).toBe("STALE");
     expect(await balances(db)).toEqual({ cash: 0, member: 0 });
@@ -74,6 +73,18 @@ describe("import Excel", () => {
     expect(again.status).toBe("READY");
     await rpc(db, admin.id, "import_commit", { p_job_id: job.id, p_preview_hash: again.preview_hash });
     expect(await balanceOf(db, c.id)).toBe(10000);
+  });
+
+  test("tài khoản bị khóa sau preview → STALE", async () => {
+    const c = await createUser(db, { code: "C003", username: "chi" });
+    const job = await stage("GIFTS", sum("c2"), [{ row_no: 2, external_ref: "QUA2", occurred_on: today, amount_vnd: 30000 }]);
+    expect(job.rows[0].normalized.split).toEqual({ n: 3, base_share_vnd: 10000, remainder: 0 });
+    await rpc(db, admin.id, "admin_set_user_status", { p_user_id: c.id, p_status: "DISABLED", p_reason: "nghỉ" });
+    const r = await rpc(db, admin.id, "import_commit", { p_job_id: job.id, p_preview_hash: job.preview_hash });
+    expect(r.status).toBe("STALE");
+    expect(await balances(db)).toEqual({ cash: 0, member: 0 });
+    const again = await rpc(db, admin.id, "import_preview", { p_job_id: job.id });
+    expect(again.rows[0].normalized.split).toEqual({ n: 2, base_share_vnd: 15000, remainder: 0 });
   });
 
   test("phiếu mua nhiều dòng gom theo mã phiếu", async () => {
@@ -93,11 +104,13 @@ describe("import Excel", () => {
     expect(s.member).toBe(s.cash);
   });
 
-  test("phiếu có dòng mâu thuẫn / người mua không thuộc quỹ → lỗi theo nhóm", async () => {
+  test("phiếu có dòng mâu thuẫn / người mua bị khóa → lỗi theo nhóm", async () => {
+    const off = await createUser(db, { code: "D004", username: "nghi" });
+    await db.query(`update public.profiles set status = 'DISABLED' where id = $1`, [off.id]);
     const job = await stage("PURCHASES", sum("e1"), [
       { row_no: 2, external_ref: "HD1", occurred_on: today, paid_by: "FUND", item_name: "Hạt", line_amount_vnd: 1000 },
       { row_no: 3, external_ref: "HD1", occurred_on: addDays(today, -1), paid_by: "FUND", item_name: "Sữa", line_amount_vnd: 1000 },
-      { row_no: 4, external_ref: "HD2", occurred_on: today, paid_by: "MEMBER", payer_username: "admin", item_name: "x", line_amount_vnd: 1000 },
+      { row_no: 4, external_ref: "HD2", occurred_on: today, paid_by: "MEMBER", payer_username: "nghi", item_name: "x", line_amount_vnd: 1000 },
     ]);
     expect(job.status).toBe("HAS_ERRORS");
     expect(job.rows[0].errors[0]).toMatch(/cùng ngày/);
@@ -105,6 +118,7 @@ describe("import Excel", () => {
   });
 
   test("MEMBERS: báo tài khoản mới; commit yêu cầu tài khoản đã tạo; tạo membership", async () => {
+    await addMembership(db, a.id, addDays(today, -30)); // dữ liệu membership cũ để kiểm tra trùng khoảng
     const job = await stage("MEMBERS", sum("f1"), [
       { row_no: 2, employee_code: "C003", username: "Chi", display_name: "Chi", role: "MEMBER", start_date: today },
       { row_no: 3, employee_code: "A001", username: "anh", display_name: "Anh", start_date: today },

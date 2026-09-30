@@ -6,7 +6,7 @@ import { callRpc } from "@/lib/rpc";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { ENTRY_TYPE_LABEL, EVENT_KIND_LABEL } from "@/lib/labels";
 import type { FundEventDetail } from "@/lib/types";
-import { Alert, Badge, Card, LinkButton, Money, PageHeader } from "@/components/ui";
+import { Alert, Badge, Card, Money, PageHeader } from "@/components/ui";
 import { ReverseForm } from "./reverse-form";
 
 export const metadata: Metadata = { title: "Chi tiết giao dịch" };
@@ -26,7 +26,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       <PageHeader
         title={`${EVENT_KIND_LABEL[e.kind]}${e.reverses_kind ? ` — ${EVENT_KIND_LABEL[e.reverses_kind]}` : ""}`}
         subtitle={`${formatDate(e.occurred_on)} · ghi bởi ${e.actor ?? "—"} lúc ${formatDateTime(e.created_at, true)}`}
-        actions={<LinkButton href="/admin/fund">← Sổ quỹ</LinkButton>}
+        back="/admin/fund" backLabel="Quay lại Sổ quỹ"
       />
       <div className="mb-4 flex flex-wrap gap-2">
         {e.status === "REVERSED" ? <Badge tone="warn">Đã đảo</Badge> : <Badge tone="ok">Đã ghi</Badge>}

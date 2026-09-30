@@ -9,12 +9,13 @@ import { Badge, Card, EmptyState, Money, PageHeader, Pagination, Select, Table, 
 import { PeriodFilter } from "@/components/period-filter";
 import { PersonMoneyForm } from "./person-money-form";
 import { GiftForm } from "./gift-form";
+import { DepositForm } from "./deposit-form";
 
 export const metadata: Metadata = { title: "Sổ quỹ" };
 const PAGE_SIZE = 30;
 const FORMS = ["DEPOSIT", "GIFT", "REIMBURSEMENT"] as const;
 type FormKind = (typeof FORMS)[number];
-const FORM_LABEL: Record<FormKind, string> = { DEPOSIT: "Tiền nộp", GIFT: "Tiền cho thêm", REIMBURSEMENT: "Hoàn tiền" };
+const FORM_LABEL: Record<FormKind, string> = { DEPOSIT: "Nộp quỹ", GIFT: "Tiền cho thêm", REIMBURSEMENT: "Hoàn tiền" };
 
 export default async function FundPage({ searchParams }: {
   searchParams: Promise<{ form?: string; from?: string; to?: string; kind?: string; page?: string }>;
@@ -38,7 +39,7 @@ export default async function FundPage({ searchParams }: {
 
   return (
     <>
-      <PageHeader title="Sổ quỹ" subtitle="Chỉ ghi sau khi tiền thực đã nhận/trả. Sửa sai bằng giao dịch đảo, không sửa/xóa." />
+      <PageHeader back="/settings" backLabel="Quay lại Cài đặt" backMobileOnly title="Sổ quỹ" subtitle="Chỉ ghi sau khi tiền thực đã nhận/trả. Sửa sai bằng giao dịch đảo, không sửa/xóa." />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="order-2 min-w-0 lg:order-1">
           <div className="mb-3 flex flex-wrap items-end gap-2">
@@ -103,7 +104,9 @@ export default async function FundPage({ searchParams }: {
               </Link>
             ))}
           </nav>
-          {form === "GIFT" ? <GiftForm /> : <PersonMoneyForm key={form} kind={form} people={people} />}
+          {form === "GIFT" ? <GiftForm />
+            : form === "DEPOSIT" ? <DepositForm people={users.map((u) => ({ id: u.id, label: `${u.employee_code} · ${u.display_name}${u.status === "DISABLED" ? " (khóa)" : ""}`, balance: u.balance_vnd, disabled: u.status === "DISABLED" }))} />
+            : <PersonMoneyForm key={form} kind={form} people={people} />}
         </Card>
       </div>
     </>

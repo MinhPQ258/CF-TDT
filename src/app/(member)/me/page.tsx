@@ -4,73 +4,76 @@ import { requireUser } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import { formatDate } from "@/lib/dates";
 import { formatVnd } from "@/lib/money";
-import { ENTRY_TYPE_LABEL, ENTRY_TYPE_ORDER, EVENT_KIND_LABEL } from "@/lib/labels";
-import type { LedgerRow, MyBalance, Paged } from "@/lib/types";
+import { ENTRY_TYPE_LABEL, EVENT_KIND_LABEL } from "@/lib/labels";
+import type { FundSummary, LedgerRow, MyBalance, Paged } from "@/lib/types";
 import { Badge, Card, EmptyState, Money, PageHeader, Pagination, cx } from "@/components/ui";
 
-export const metadata: Metadata = { title: "Số dư của tôi" };
+export const metadata: Metadata = { title: "Quỹ" };
 const PAGE_SIZE = 30;
 
-/**
- * Trả lời 3 câu theo thứ tự (DEV plan v2 §7):
- *   1. Tôi cần nộp bao nhiêu?  2. Vì sao? (nhóm theo loại)  3. Chi tiết từng dòng
- */
-export default async function MyBalancePage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+/** Quỹ: tổng đã đóng / đã chi / còn lại → số tiền đóng của từng người → giao dịch của tôi */
+export default async function FundPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const me = await requireUser();
   const page = Math.max(1, Number((await searchParams).page) || 1);
-  const [bal, ledger, fund] = await Promise.all([
+  const [fund, bal, ledger] = await Promise.all([
+    loadRpc<FundSummary>("fund_summary"),
     loadRpc<MyBalance>("my_balance"),
     loadRpc<Paged<LedgerRow>>("my_ledger", { p_limit: PAGE_SIZE, p_offset: (page - 1) * PAGE_SIZE }),
-    loadRpc<{ cash_balance_vnd: number }>("fund_summary"),
   ]);
   const b = bal.balance_vnd;
+  const maxDeposit = Math.max(1, ...fund.people.map((p) => p.deposited_vnd));
 
   return (
     <>
-      <PageHeader title={`Chào ${me.display_name}`} subtitle={`Số liệu tính đến ${formatDate(bal.as_of)}`} />
+      <PageHeader title="Quỹ" subtitle={`Số liệu tính đến ${formatDate(fund.as_of)}`}
+        actions={me.role === "ADMIN" ? <Link href="/admin/dashboard" className="inline-flex min-h-11 items-center text-sm text-brand underline">Quản trị quỹ →</Link> : undefined} />
 
-      <section aria-labelledby="need" className={cx("rounded-xl border p-5", b < 0 ? "border-danger/40 bg-danger-soft" : "border-ok/30 bg-ok-soft")}>
-        <h2 id="need" className="text-base font-semibold">
-          {b < 0 ? "Cần nộp thêm" : b > 0 ? "Đang dư (đã ứng/nộp trước)" : "Đã cân bằng"}
-        </h2>
-        <p className={cx("num mt-1 text-4xl font-bold", b < 0 ? "text-danger" : "text-ok")}>{formatVnd(Math.abs(b))}</p>
-        <p className="mt-2 text-sm">
-          {b < 0
-            ? "Chi phí mua đồ chung được chia cho bạn nhiều hơn số bạn đã nộp. Nộp khoản này cho quản trị quỹ."
-            : b > 0
-              ? "Bạn đã nộp hoặc mua hộ nhiều hơn phần chi phí được chia. Khoản dư sẽ trừ dần vào các lần mua sau."
-              : "Bạn không nợ và không dư."}
-          {!bal.is_member_today && " Bạn hiện không còn là thành viên quỹ."}
-        </p>
-      </section>
+      <dl className="grid grid-cols-3 overflow-hidden rounded-xl border border-line bg-surface text-center">
+        <div className="border-r border-line px-2 py-3">
+          <dt className="text-sm text-muted">Đã đóng</dt>
+          <dd className="num mt-0.5 text-lg font-bold lg:text-2xl">{formatVnd(fund.deposits_vnd + fund.gifts_vnd)}</dd>
+        </div>
+        <div className="border-r border-line px-2 py-3">
+          <dt className="text-sm text-muted">Đã chi</dt>
+          <dd className="num mt-0.5 text-lg font-bold lg:text-2xl">{formatVnd(fund.spent_vnd)}</dd>
+        </div>
+        <div className="px-2 py-3">
+          <dt className="text-sm text-muted">Quỹ còn</dt>
+          <dd className={cx("num mt-0.5 text-lg font-bold lg:text-2xl", fund.cash_balance_vnd < 0 && "text-danger")}>{formatVnd(fund.cash_balance_vnd)}</dd>
+        </div>
+      </dl>
+      {fund.gifts_vnd > 0 && <p className="mt-1 text-xs text-muted">Đã đóng gồm {formatVnd(fund.gifts_vnd)} tiền cho thêm.</p>}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card title="Vì sao?" className="lg:col-span-2">
-          <dl className="divide-y divide-line">
-            {ENTRY_TYPE_ORDER.map((t) => (
-              <div key={t} className="flex items-center justify-between gap-3 py-2">
-                <dt>{ENTRY_TYPE_LABEL[t]}</dt>
-                <dd><Money value={bal.breakdown[t]} sign /></dd>
-              </div>
+      <p className={cx("mt-3 rounded-lg px-3 py-2 text-sm", b < 0 ? "bg-danger-soft" : "bg-ok-soft")}>
+        {b < 0 ? <>Bạn cần nộp thêm <strong className="num text-danger">{formatVnd(-b)}</strong></>
+          : b > 0 ? <>Bạn đang dư <strong className="num text-ok">{formatVnd(b)}</strong>, trừ dần vào các lần mua sau</>
+          : "Bạn đã cân bằng, không nợ không dư"}
+      </p>
+
+      <Card title={`Tiền đóng của mỗi người (${fund.people.length})`} className="mt-4">
+        {fund.people.length === 0 ? <p className="text-muted">Chưa có ai.</p> : (
+          <ul className="divide-y divide-line">
+            {fund.people.map((p) => (
+              <li key={p.user_id} className="py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate">
+                    <span className={cx(p.is_me && "font-semibold")}>{p.display_name}</span>
+                    {p.is_me && <span className="text-muted"> (bạn)</span>}
+                  </span>
+                  <span className={cx("num shrink-0 font-semibold", p.deposited_vnd === 0 && "font-normal text-muted")}>{formatVnd(p.deposited_vnd)}</span>
+                </div>
+                <span className="mt-1 block h-1.5 rounded bg-bg" aria-hidden>
+                  <span className="block h-1.5 rounded bg-brand" style={{ width: `${Math.max(0, (p.deposited_vnd / maxDeposit) * 100)}%` }} />
+                </span>
+              </li>
             ))}
-            <div className="flex items-center justify-between gap-3 py-2 font-semibold">
-              <dt>Số dư</dt>
-              <dd><Money value={b} sign /></dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-sm text-muted">
-            Mỗi phiếu mua và khoản tiền cho thêm được chia đều cho mọi thành viên quỹ tại ngày phát sinh, kể cả người không vote hay không uống.
-            Chia nguyên đồng; phần dư 1–(N−1) đồng lần lượt cộng cho người có mã nhân viên nhỏ hơn.
-          </p>
-        </Card>
-        <Card title="Quỹ chung">
-          <p className="text-sm text-muted">Tiền quỹ thực đang giữ</p>
-          <p className="mt-1 text-2xl font-bold"><Money value={fund.cash_balance_vnd} /></p>
-          <Link href="/purchases" className="mt-3 inline-flex min-h-11 items-center text-brand underline">Xem các phiếu mua →</Link>
-        </Card>
-      </div>
+          </ul>
+        )}
+        <Link href="/purchases" className="mt-2 inline-flex min-h-11 items-center text-sm text-brand underline">Xem các phiếu mua →</Link>
+      </Card>
 
-      <Card title="Chi tiết từng dòng" className="mt-4">
+      <details className="mt-4 rounded-xl border border-line bg-surface px-4">
+        <summary className="flex min-h-12 cursor-pointer items-center font-semibold">Giao dịch của tôi ({ledger.total})</summary>
         {ledger.total === 0 ? (
           <EmptyState title="Chưa có giao dịch">Khi quản trị ghi tiền nộp hoặc phiếu mua, các dòng sẽ hiện ở đây.</EmptyState>
         ) : (
@@ -101,7 +104,7 @@ export default async function MyBalancePage({ searchParams }: { searchParams: Pr
             <Pagination page={page} total={ledger.total} pageSize={PAGE_SIZE} hrefFor={(p) => `/me?page=${p}`} />
           </>
         )}
-      </Card>
+      </details>
     </>
   );
 }

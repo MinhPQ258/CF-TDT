@@ -195,6 +195,25 @@ describe("vote", () => {
     await expectCode(openSession("x", { p_opens_at: inMinutes(-10), p_cutoff_at: inMinutes(-5) }), "INVALID_INPUT");
   });
 
+  test("thành viên tạo được đợt (luôn đăng, không nháp); vote_templates cho mọi người", async () => {
+    const s = await rpc(db, a.id, "create_vote_session", {
+      p_name: "Anh mở", p_service_date: today, p_opens_at: inMinutes(-1), p_cutoff_at: inMinutes(30),
+      p_styles: ["Phin"], p_addons: ["Đá"], p_publish: false });
+    expect(s).toMatchObject({ status: "PUBLISHED", state: "OPEN" });
+    expect((await rpc(db, b.id, "home")).sessions.map((x: any) => x.name)).toContain("Anh mở");
+    const t = await rpc(db, b.id, "vote_templates");
+    expect(t[0].name).toBe("Anh mở");
+    const audit = await db.query<{ n: number }>(`select count(*)::int n from audit_events where action = 'vote.create' and actor_user_id = $1`, [a.id]);
+    expect(audit.rows[0].n).toBe(1);
+    // điều khiển đợt vẫn chỉ admin
+    await expectCode(rpc(db, a.id, "close_vote_early", { p_session_id: s.id }), "INSUFFICIENT_PERMISSION");
+    await expectCode(rpc(db, a.id, "admin_vote_templates"), "INSUFFICIENT_PERMISSION");
+    // admin vẫn tạo nháp được
+    const draft = await rpc(db, admin.id, "create_vote_session", {
+      p_name: "Nháp admin", p_service_date: today, p_opens_at: inMinutes(-1), p_cutoff_at: inMinutes(30), p_publish: false });
+    expect(draft.status).toBe("DRAFT");
+  });
+
   test("mọi tài khoản ACTIVE được vote kể cả không thuộc quỹ (7A)", async () => {
     const s = await openSession();
     const r = await vote(admin, s, "Máy");
@@ -235,5 +254,87 @@ describe("home", () => {
     expect(h.sessions).toEqual([]);
     expect(h.last_closed.name).toBe("Cũ");
     expect(h.next.name).toBe("Mai");
+  });
+});
+
+describe("đặt hộ", () => {
+  function voteFor(actor: TestUser, s: any, target: TestUser, style: string, addons: string[] = [], cups = 1) {
+    return rpc(db, actor.id, "cast_vote_for", {
+      p_session_id: s.id, p_user_id: target.id, p_style_option_id: opt(s, "styles", style),
+      p_addon_ids: addons.map((x) => opt(s, "addons", x)), p_cups: cups,
+    });
+  }
+
+  test("phiếu riêng của người được đặt hộ, lựa chọn riêng, ghi người đặt", async () => {
+    const s = await openSession();
+    await vote(a, s, "Phin", ["Đá"]);
+    const r = await voteFor(a, s, b, "Máy", ["Sữa đặc", "Đường"], 2);
+    expect(r.yes_count).toBe(2);
+    expect(r.cups_total).toBe(3);
+    expect(r.my_proxies).toHaveLength(1);
+    expect(r.my_proxies[0]).toMatchObject({ user_id: b.id, style_label: "Máy", cups: 2 });
+    const d = await rpc(db, admin.id, "vote_session_detail", { p_session_id: s.id });
+    const vb = d.votes.find((v: any) => v.display_name === "Bình");
+    expect(vb.voted_by_name).toBe("Anh");
+    expect(d.not_voted.map((x: any) => x.display_name)).not.toContain("Bình");
+    const home = await rpc(db, b.id, "home", {});
+    expect(home.sessions[0].my_vote_by).toBe("Anh");
+  });
+
+  test("không đè phiếu người đó đã tự vote; tự vote lại thì phiếu thành của họ", async () => {
+    const s = await openSession();
+    await vote(b, s, "Phin");
+    await expectCode(voteFor(a, s, b, "Máy"), "INVALID_INPUT");
+    const s2 = await openSession("Chiều");
+    await voteFor(a, s2, b, "Máy");
+    await vote(b, s2, "Phin");
+    const r = await rpc(db, a.id, "vote_session_detail", { p_session_id: s2.id });
+    expect(r.my_proxies).toHaveLength(0);
+    expect(r.votes.find((v: any) => v.display_name === "Bình").voted_by_name).toBeNull();
+  });
+
+  test("bỏ đặt hộ: chỉ người đã đặt; không đặt hộ chính mình", async () => {
+    const s = await openSession();
+    await voteFor(a, s, b, "Máy");
+    await rpc(db, admin.id, "withdraw_vote_for", { p_session_id: s.id, p_user_id: b.id });
+    expect((await rpc(db, a.id, "vote_session_detail", { p_session_id: s.id })).my_proxies).toHaveLength(1);
+    const r = await rpc(db, a.id, "withdraw_vote_for", { p_session_id: s.id, p_user_id: b.id });
+    expect(r.my_proxies).toHaveLength(0);
+    expect(r.yes_count).toBe(0);
+    await expectCode(voteFor(a, s, a, "Máy"), "INVALID_INPUT");
+    const people = await rpc(db, a.id, "vote_people", { p_session_id: s.id });
+    expect(people.map((p: any) => p.display_name)).not.toContain("Anh");
+  });
+});
+
+describe("chỉnh sửa đợt", () => {
+  const update = (s: any, extra: Record<string, unknown> = {}) => rpc(db, admin.id, "admin_update_vote_session", {
+    p_session_id: s.id, p_name: "Sáng sửa", p_service_date: today, p_opens_at: inMinutes(-10), p_cutoff_at: inMinutes(90),
+    p_allow_cups: false, p_styles: ["Máy", "Latte"], p_addons: ["Đá"], ...extra,
+  });
+
+  test("đổi thông tin + đồng bộ lựa chọn: đã có người chọn → ẩn, chưa ai chọn → xóa, mới → thêm", async () => {
+    const s = await openSession();
+    await vote(a, s, "Phin", ["Sữa đặc"]);
+    const r = await update(s);
+    expect(r).toMatchObject({ name: "Sáng sửa", allow_cups: false });
+    expect(r.planned_brew_at).toBe(r.cutoff_at);
+    expect(r.options.styles.map((o: any) => o.label)).toEqual(["Máy", "Latte"]);
+    expect(r.options.addons.map((o: any) => o.label)).toEqual(["Đá"]);
+    const d = await rpc(db, admin.id, "vote_session_detail", { p_session_id: s.id });
+    const hidden = d.options_all.styles.filter((o: any) => o.hidden).map((o: any) => o.label);
+    expect(hidden).toEqual(["Phin"]); // Cold brew chưa ai chọn → xóa hẳn
+    expect(d.votes[0].style_label).toBe("Phin");
+    // thêm lại Phin → hiện lại, không tạo trùng
+    const again = await update(s, { p_styles: ["Phin", "Máy"] });
+    expect(again.options.styles.map((o: any) => o.label)).toEqual(["Phin", "Máy"]);
+  });
+
+  test("chỉ admin; cần ≥1 kiểu pha; giờ chốt ở tương lai", async () => {
+    const s = await openSession();
+    await expectCode(rpc(db, a.id, "admin_update_vote_session", { p_session_id: s.id, p_name: "x", p_service_date: today,
+      p_opens_at: inMinutes(-10), p_cutoff_at: inMinutes(60), p_allow_cups: true, p_styles: ["A"], p_addons: [] }), "INSUFFICIENT_PERMISSION");
+    await expectCode(update(s, { p_styles: [] }), "INVALID_INPUT");
+    await expectCode(update(s, { p_cutoff_at: inMinutes(-1) }), "INVALID_INPUT");
   });
 });

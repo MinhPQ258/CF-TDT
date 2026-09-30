@@ -16,7 +16,7 @@ export default async function HealthPage() {
 
   return (
     <>
-      <PageHeader title="Sức khỏe sổ" subtitle="Bất biến: Σ số dư thành viên = Σ tiền quỹ thực, cho từng giao dịch và toàn sổ." actions={<ReconcileButton />} />
+      <PageHeader back="/settings" backLabel="Quay lại Cài đặt" backMobileOnly title="Sức khỏe sổ" subtitle="Bất biến: Σ số dư thành viên = Σ tiền quỹ thực, cho từng giao dịch và toàn sổ." actions={<ReconcileButton />} />
       <div className="mb-4">
         {healthy
           ? <Alert tone="ok" title="Sổ khớp">Không có giao dịch lệch.</Alert>

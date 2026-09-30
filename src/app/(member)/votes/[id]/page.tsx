@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { callRpc } from "@/lib/rpc";
 import { formatDate, formatDateTime, formatTime } from "@/lib/dates";
 import type { VoteSessionDetail } from "@/lib/types";
-import { Alert, LinkButton, PageHeader } from "@/components/ui";
+import { Alert, PageHeader } from "@/components/ui";
 import { VoteStateBadge } from "@/components/vote-bits";
 import { VoteResult } from "@/components/vote-result";
 
@@ -23,7 +23,7 @@ export default async function VoteDetailPage({ params }: { params: Promise<{ id:
       <PageHeader
         title={s.name}
         subtitle={`${formatDate(s.service_date)} · chốt ${formatTime(s.closed_at)}${s.planned_brew_at ? ` · pha ${formatTime(s.planned_brew_at)}` : ""}`}
-        actions={<LinkButton href="/votes">← Các đợt</LinkButton>}
+        back="/votes" backLabel="Quay lại các đợt pha"
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <VoteStateBadge state={s.state} />

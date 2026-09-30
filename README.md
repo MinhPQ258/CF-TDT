@@ -70,6 +70,21 @@ Mật khẩu mặc định: `123456`. Xóa dữ liệu làm lại: `npm run loca
 
 Với Supabase CLI: `supabase link --project-ref <ref>` rồi `supabase db push` dùng thẳng `supabase/migrations`.
 
+## Auto migration + deploy (GitHub Actions)
+
+Push lên `main` → **check** (lint, typecheck, test, build) → **migrate** (`supabase db push` chạy migration mới trên production) → **deploy** (gọi Vercel Deploy Hook). Migration chạy trước để code mới không chạy trên DB cũ; Vercel không tự deploy `main` (`vercel.json` → `git.deploymentEnabled.main: false`). Chạy tay: Actions → CI / Deploy → Run workflow.
+
+GitHub → Settings → Secrets and variables → Actions (nên đặt trong environment `production`):
+
+| Secret | Lấy ở đâu |
+| --- | --- |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens → Generate |
+| `SUPABASE_PROJECT_ID` | Project Settings → General → Project ID (chuỗi trong URL `https://<id>.supabase.co`) |
+| `SUPABASE_DB_PASSWORD` | Mật khẩu database đặt khi tạo project (quên: Database → Settings → Reset database password) |
+| `VERCEL_DEPLOY_HOOK_URL` | Vercel → project → Settings → Git → Deploy Hooks → tạo hook cho branch `main` |
+
+Production dựng tay trước đây (000001–000012) được ghi trong `supabase/baseline-production.txt`; workflow đánh dấu chúng "applied" rồi chỉ chạy migration mới. Migration mới: thêm file vào `supabase/migrations/` (chỉ thêm, tương thích ngược), chạy `npm run db:bundle`. Local tự áp migration khi khởi động `npm run dev:local`.
+
 ## Vercel
 
 Biến môi trường (xem `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (chỉ server: tạo TK, đặt lại MK, khóa phiên, cron), `CRON_SECRET`, `APP_AUTH_EMAIL_DOMAIN=coffee.internal`.

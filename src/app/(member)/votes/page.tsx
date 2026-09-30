@@ -16,7 +16,7 @@ export default async function VotesPage() {
 
   return (
     <>
-      <PageHeader title="Các đợt pha" subtitle="Vote là ý định uống, không phát sinh tiền." actions={<LinkButton href="/" variant="primary">Vote đợt đang mở</LinkButton>} />
+      <PageHeader back="/" backLabel="Quay lại Home" title="Các đợt pha" subtitle="Vote là ý định uống, không phát sinh tiền." actions={<LinkButton href="/" variant="primary">Vote đợt đang mở</LinkButton>} />
       <h2 className="mb-2 text-lg font-semibold">Đang mở / sắp mở</h2>
       {open.length === 0 ? (
         <EmptyState title="Chưa có đợt vote nào đang mở">

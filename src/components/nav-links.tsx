@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cx } from "@/components/ui";
 
-export type IconName = "wallet" | "cup" | "receipt" | "chart" | "users" | "user" | "table" | "file" | "pulse" | "key";
+export type IconName = "wallet" | "cup" | "receipt" | "chart" | "users" | "user" | "table" | "file" | "pulse" | "key" | "plus" | "gear";
 
 export interface NavItem {
   href: string;
@@ -23,6 +23,8 @@ const PATHS: Record<IconName, string> = {
   file: "M14 3H6v18h12V7l-4-4Zm0 0v4h4M9 13l2 2 4-4",
   pulse: "M3 12h4l2-6 4 12 2-6h6",
   key: "M15 7a4 4 0 1 1-3.87 5H9v2H7v2H4v-3l6.13-6.13A4 4 0 0 1 15 7Z",
+  plus: "M12 5v14M5 12h14",
+  gear: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7.3 7.3 0 0 0-2-1.2L14.5 3h-4l-.4 2.6a7.3 7.3 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7.3 7.3 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.3 7.3 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z",
 };
 
 function Icon({ name }: { name: IconName }) {
@@ -62,6 +64,49 @@ export function NavLinks({ items, variant }: { items: NavItem[]; variant: "side"
           </Link>
         </li>
       ))}
+    </ul>
+  );
+}
+
+export interface TabItem extends NavItem {
+  /** các tiền tố đường dẫn làm tab này sáng (mặc định: href) */
+  match?: string[];
+  /** nút giữa nổi bật (＋ Tạo đợt vote) */
+  primary?: boolean;
+}
+
+/** Thanh tab dưới (mobile): 5 mục, mục giữa là nút tròn nổi bật */
+export function BottomTabs({ items }: { items: TabItem[] }) {
+  const pathname = usePathname();
+  // Tab sáng = tab có tiền tố khớp dài nhất (vd /votes/new thuộc nút ＋, không thuộc Vote)
+  const score = (it: TabItem) => Math.max(-1, ...(it.match ?? [it.href]).map((m) =>
+    (m === "/" ? pathname === "/" : pathname === m || pathname.startsWith(`${m}/`)) ? m.length : -1));
+  const best = Math.max(...items.map(score));
+  const active = (it: TabItem) => best >= 0 && score(it) === best;
+  return (
+    <ul className="grid grid-cols-5 items-end">
+      {items.map((it) => {
+        const on = active(it);
+        if (it.primary) {
+          return (
+            <li key={it.href} className="flex justify-center">
+              <Link href={it.href} aria-label={it.label} aria-current={on ? "page" : undefined}
+                className="-mt-5 flex size-14 items-center justify-center rounded-full bg-brand text-brand-ink shadow-lg ring-4 ring-surface">
+                <Icon name={it.icon} />
+              </Link>
+            </li>
+          );
+        }
+        return (
+          <li key={it.href}>
+            <Link href={it.href} aria-current={on ? "page" : undefined}
+              className={cx("flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs", on ? "font-semibold text-brand" : "text-muted")}>
+              <Icon name={it.icon} />
+              {it.label}
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

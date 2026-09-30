@@ -22,7 +22,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="Báo cáo theo kỳ" subtitle={`${formatDate(from)} – ${formatDate(to)}: số dư đầu kỳ, biến động theo loại, số dư cuối kỳ`}
+      <PageHeader back="/settings" backLabel="Quay lại Cài đặt" backMobileOnly title="Báo cáo theo kỳ" subtitle={`${formatDate(from)} – ${formatDate(to)}: số dư đầu kỳ, biến động theo loại, số dư cuối kỳ`}
         actions={<a className={buttonClass("primary")} href={`/api/admin/export?from=${from}&to=${to}`}>Xuất Excel kỳ này</a>} />
       <div className="mb-4"><PeriodFilter from={from} to={to} action="/admin/reports" /></div>
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

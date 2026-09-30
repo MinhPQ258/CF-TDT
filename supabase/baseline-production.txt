@@ -1,0 +1,16 @@
+# Migration ĐÃ có trên Supabase production trước khi bật auto migration (30/09/2026):
+# dựng bằng coffee_tdt_full.sql (000001–000011) + upgrade_012_vote_options.sql (000012).
+# Workflow đánh dấu các version này là "applied" (idempotent) rồi `supabase db push` chỉ chạy phần còn lại.
+# KHÔNG thêm migration mới vào file này — migration mới để workflow tự chạy.
+20260925000001
+20260925000002
+20260925000003
+20260925000004
+20260925000005
+20260925000006
+20260925000007
+20260925000008
+20260925000009
+20260925000010
+20260925000011
+20260930000012

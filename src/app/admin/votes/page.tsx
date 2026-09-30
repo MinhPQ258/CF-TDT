@@ -3,13 +3,14 @@ import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import { addDays, formatTime, vnToday } from "@/lib/dates";
-import type { VoteSession, VoteSessionDetail, VoteTemplate } from "@/lib/types";
+import type { VoteSession, VoteSessionDetail } from "@/lib/types";
 import { Card, EmptyState, LinkButton, PageHeader, Stat, cx } from "@/components/ui";
 import { VoteStateBadge, VoteWhen } from "@/components/vote-bits";
 import { Countdown } from "@/components/vote-controls";
 import { VoteHome, withQuery } from "@/components/vote-home";
-import { CreateSessionForm } from "./create-session-form";
-import { CopyBrewList } from "./[id]/session-admin";
+import { CreateSessionForm } from "@/components/create-session-form";
+import { CopyBrewList, SessionMoreMenu } from "./[id]/session-admin";
+import { SessionSelect } from "@/components/session-select";
 
 export const metadata: Metadata = { title: "Đợt pha & vote" };
 
@@ -46,10 +47,7 @@ function summary(v: VoteSessionDetail["votes"][number]) {
 
 async function Overview({ selected }: { selected?: string }) {
   const today = vnToday();
-  const [sessions, templates] = await Promise.all([
-    loadRpc<VoteSession[]>("list_vote_sessions", { p_from: addDays(today, -30), p_to: addDays(today, 30) }),
-    loadRpc<VoteTemplate[]>("admin_vote_templates"),
-  ]);
+  const sessions = await loadRpc<VoteSession[]>("list_vote_sessions", { p_from: addDays(today, -30), p_to: addDays(today, 30) });
   const live = sessions.filter((s) => s.state === "OPEN" || s.state === "UPCOMING").sort((a, b) => a.cutoff_at.localeCompare(b.cutoff_at));
   const current = live.find((s) => s.id === selected) ?? live[0] ?? null;
   const d = current ? await loadRpc<VoteSessionDetail>("vote_session_detail", { p_session_id: current.id }) : null;
@@ -59,8 +57,14 @@ async function Overview({ selected }: { selected?: string }) {
 
   return (
     <div className="space-y-4">
+      {live.length > 1 && current && (
+        <div className="lg:hidden">
+          <SessionSelect value={current.id}
+            options={live.map((s) => ({ id: s.id, href: withQuery("/admin/votes", { s: s.id }), label: `${s.name} · ${s.yes_count} người` }))} />
+        </div>
+      )}
       {live.length > 1 && (
-        <nav aria-label="Chọn đợt" className="flex flex-wrap gap-2">
+        <nav aria-label="Chọn đợt" className="hidden flex-wrap gap-2 lg:flex">
           {live.map((s) => (
             <Link key={s.id} href={withQuery("/admin/votes", { s: s.id })} aria-current={s.id === current?.id ? "page" : undefined}
               className={cx("flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm",
@@ -73,7 +77,7 @@ async function Overview({ selected }: { selected?: string }) {
 
       {d ? (
         <>
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex items-start justify-between gap-3 lg:flex-wrap lg:items-end">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold">{d.name}</h2>
@@ -84,14 +88,23 @@ async function Overview({ selected }: { selected?: string }) {
                 {d.planned_brew_at && <> · pha {formatTime(d.planned_brew_at)}</>}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="-mr-2 shrink-0 lg:hidden"><SessionMoreMenu s={d} /></div>
+            <div className="hidden flex-wrap gap-2 lg:flex">
               <LinkButton href={`/admin/votes?tab=vote&s=${d.id}`}>Tôi vote</LinkButton>
-              <LinkButton href={`/admin/votes/${d.id}`}>Điều khiển đợt</LinkButton>
+              <LinkButton href={`/admin/votes/${d.id}/edit`}>Chỉnh sửa</LinkButton>
               <CopyBrewList s={d} />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <dl className="grid grid-cols-4 overflow-hidden rounded-xl border border-line bg-surface text-center lg:hidden">
+            {([["Uống", d.yes_count, false], ["Cốc", d.cups_total, false], ["Không", d.no_count, false], ["Chưa vote", notVoted.length, true]] as const).map(([k, v, warn]) => (
+              <div key={k} className={cx("px-1 py-2", warn ? "bg-warn-soft" : "border-r border-line")}>
+                <dt className={cx("text-xs", warn ? "text-warn" : "text-muted")}>{k}</dt>
+                <dd className="text-lg font-bold leading-tight">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="hidden grid-cols-4 gap-3 lg:grid">
             <Stat label="Người uống" value={d.yes_count} />
             <Stat label="Tổng cốc" value={d.cups_total} />
             <Stat label="Không uống" value={d.no_count} />
@@ -113,7 +126,7 @@ async function Overview({ selected }: { selected?: string }) {
                       <ul className="mt-2 space-y-1.5 text-sm">
                         {yes.filter((v) => v.style_label === st.label).map((v, i) => (
                           <li key={i} className="flex justify-between gap-2">
-                            <span className="min-w-0 truncate font-medium">{v.display_name}{v.is_me && " (bạn)"}</span>
+                            <span className="min-w-0 truncate font-medium">{v.display_name}{v.is_me && " (bạn)"}{v.voted_by_name && <span className="block text-xs font-normal text-muted">đặt hộ bởi {v.voted_by_name}</span>}</span>
                             <span className="shrink-0 text-right text-muted">{summary(v) || "—"}</span>
                           </li>
                         ))}
@@ -155,7 +168,7 @@ async function Overview({ selected }: { selected?: string }) {
 
       <details open={!d} className="rounded-xl border border-line bg-surface">
         <summary className="flex min-h-12 cursor-pointer items-center px-4 font-semibold">+ Tạo đợt pha mới</summary>
-        <div className="border-t border-line p-4"><CreateSessionForm today={today} templates={templates} /></div>
+        <div className="border-t border-line p-4"><CreateSessionForm today={today} doneBase="/admin/votes" /></div>
       </details>
 
       <Card title="30 ngày gần đây">

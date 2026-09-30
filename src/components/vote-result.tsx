@@ -23,6 +23,15 @@ export function VoteResult({ s, editHref, othersHref = "/votes" }: { s: VoteSess
           <div className="min-w-0">
             <p className="font-semibold text-ok">Đã ghi vote {s.name}</p>
             <p className="text-sm">{mySummary}.{open ? ` Sửa được đến ${formatTime(s.closed_at)}.` : ""}</p>
+            {s.my_vote_by && <p className="text-sm text-muted">Do {s.my_vote_by} đặt hộ.</p>}
+            {s.my_proxies?.length > 0 && (
+              <ul className="mt-1 space-y-0.5 text-sm">
+                <li className="font-medium">Bạn đặt hộ {s.my_proxies.length} người:</li>
+                {s.my_proxies.map((p) => (
+                  <li key={p.user_id}>• {p.display_name}: {[p.style_label, p.addon_labels.join(", "), p.cups ? `${p.cups} cốc` : null].filter(Boolean).join(" · ")}</li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
@@ -70,7 +79,7 @@ export function VoteResult({ s, editHref, othersHref = "/votes" }: { s: VoteSess
         <ul className="divide-y divide-line pb-2">
           {s.votes.map((v, i) => (
             <li key={i} className="flex items-start justify-between gap-3 py-2 text-sm">
-              <span className="min-w-0 truncate font-medium">{v.display_name}{v.is_me && " (bạn)"}</span>
+              <span className="min-w-0 truncate font-medium">{v.display_name}{v.is_me && " (bạn)"}{v.voted_by_name && <span className="block text-xs font-normal text-muted">đặt hộ bởi {v.voted_by_name}</span>}</span>
               <span className="shrink-0 text-right text-muted">
                 {v.choice === "YES" ? [v.style_label, v.addon_labels.join(", "), v.cups ? `${v.cups} cốc` : null].filter(Boolean).join(" · ") : "Không uống"}
               </span>

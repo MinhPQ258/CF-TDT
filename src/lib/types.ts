@@ -230,6 +230,24 @@ export interface VoteSession {
   no_count: number;
   cups_total: number;
   my_vote: MyVote | null;
+  /** người đã đặt hộ mình (nếu phiếu của mình do người khác đặt) */
+  my_vote_by: string | null;
+  /** các phiếu mình đặt hộ người khác */
+  my_proxies: ProxyVote[];
+}
+
+export interface ProxyVote extends MyVote {
+  user_id: string;
+  display_name: string;
+  employee_code: string;
+}
+
+/** Người có thể đặt hộ: SELF = đã tự vote, MINE = mình đã đặt hộ, OTHER = người khác đặt hộ */
+export interface VotePerson {
+  id: string;
+  display_name: string;
+  employee_code: string;
+  status: "SELF" | "MINE" | "OTHER" | null;
 }
 
 export interface VotePrefill {
@@ -249,7 +267,7 @@ export interface VoteSessionDetail extends VoteSession {
   options_all: VoteOptions | null;
   by_style: { label: string; people: number; cups: number }[];
   by_addon: { label: string; people: number }[];
-  votes: { display_name: string; employee_code: string; choice: "YES" | "NO"; style_label: string | null; addon_labels: string[]; cups: number | null; note: string | null; updated_at: string; is_me: boolean }[];
+  votes: { display_name: string; employee_code: string; choice: "YES" | "NO"; style_label: string | null; addon_labels: string[]; cups: number | null; note: string | null; updated_at: string; is_me: boolean; voted_by_name: string | null }[];
   not_voted: { display_name: string; employee_code: string }[] | null;
 }
 
@@ -335,4 +353,14 @@ export interface ImportJob {
   committed_at: string | null;
   created_by_name?: string;
   rows?: ImportRow[];
+}
+
+/** Tổng quan quỹ (mọi người xem): đã đóng, đã chi, còn lại, tiền đóng từng người */
+export interface FundSummary {
+  cash_balance_vnd: number;
+  as_of: string;
+  deposits_vnd: number;
+  gifts_vnd: number;
+  spent_vnd: number;
+  people: { user_id: string; display_name: string; employee_code: string; deposited_vnd: number; is_me: boolean }[];
 }

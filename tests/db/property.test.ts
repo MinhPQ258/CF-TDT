@@ -1,4 +1,4 @@
-// Property test: chuỗi ngẫu nhiên giao dịch + đổi membership → sau mỗi bước Σmember = Σcash
+// Property test: chuỗi ngẫu nhiên giao dịch + khóa/mở tài khoản → sau mỗi bước Σmember = Σcash
 // và mỗi phiếu/quà có tổng phần chia đúng bằng số tiền.
 import { expect, test } from "vitest";
 import fc from "fast-check";
@@ -10,9 +10,9 @@ test("200 giao dịch ngẫu nhiên giữ bất biến", async () => {
   const admin = await createUser(db, { code: "Z900", username: "admin", role: "ADMIN" });
   const users: TestUser[] = [];
   for (let i = 0; i < 6; i++) users.push(await createUser(db, { code: `M${100 + i}`, username: `mem${i}` }));
-  for (const u of users.slice(0, 4)) {
-    await rpc(db, admin.id, "admin_upsert_membership", { p_membership_id: null, p_user_id: u.id,
-      p_start_date: addDays(today, -60), p_end_date: null, p_reason: "seed" });
+  // admin + 4 tài khoản ACTIVE được chia; 2 tài khoản bắt đầu ở trạng thái khóa
+  for (const u of users.slice(4)) {
+    await rpc(db, admin.id, "admin_set_user_status", { p_user_id: u.id, p_status: "DISABLED", p_reason: "seed" });
   }
 
   const op = fc.oneof(
@@ -22,7 +22,7 @@ test("200 giao dịch ngẫu nhiên giữ bất biến", async () => {
       amts: fc.array(fc.integer({ min: 0, max: 99_999 }), { minLength: 1, maxLength: 4 }), disc: fc.nat(5_000), d: fc.nat(30) }),
     fc.record({ t: fc.constant("reimburse"), u: fc.nat(5), amt: fc.integer({ min: 1, max: 100_000 }), d: fc.nat(30) }),
     fc.record({ t: fc.constant("reverse"), pick: fc.nat(1000) }),
-    fc.record({ t: fc.constant("membership"), u: fc.nat(5), start: fc.nat(60), len: fc.option(fc.integer({ min: 1, max: 40 })) }),
+    fc.record({ t: fc.constant("status"), u: fc.nat(5), active: fc.boolean() }),
   );
 
   const ops = fc.sample(fc.array(op, { minLength: 200, maxLength: 200 }), { numRuns: 1, seed: 20260925 })[0];
@@ -38,6 +38,8 @@ test("200 giao dịch ngẫu nhiên giữ bất biến", async () => {
         const on = addDays(today, -o.d);
         const p = await rpc(db, admin.id, "preview_gift", { p_amount_vnd: o.amt, p_occurred_on: on });
         expect(p.members.reduce((s: number, m: any) => s + m.share_vnd, 0)).toBe(o.amt);
+        const active = await db.query<{ n: number }>(`select count(*)::int n from public.profiles where status = 'ACTIVE'`);
+        expect(p.split.n).toBe(active.rows[0].n); // chia cho đúng mọi tài khoản ACTIVE (kể cả admin)
         events.push((await rpc(db, admin.id, "post_gift", { p_idem_key: uuid(), p_amount_vnd: o.amt, p_occurred_on: on, p_preview_hash: p.preview_hash })).event_id);
       } else if (o.t === "purchase") {
         const on = addDays(today, -o.d);
@@ -49,15 +51,16 @@ test("200 giao dịch ngẫu nhiên giữ bất biến", async () => {
         events.push((await rpc(db, admin.id, "post_purchase", { ...args, p_idem_key: uuid(), p_preview_hash: p.preview_hash })).event_id);
       } else if (o.t === "reverse" && events.length > 0) {
         events.push((await rpc(db, admin.id, "reverse_event", { p_event_id: events[o.pick % events.length], p_reason: "prop", p_idem_key: uuid() })).event_id);
-      } else if (o.t === "membership") {
-        await rpc(db, admin.id, "admin_upsert_membership", { p_membership_id: null, p_user_id: users[o.u].id,
-          p_start_date: addDays(today, -o.start), p_end_date: o.len ? addDays(today, -o.start + o.len) : null, p_reason: "prop" });
+      } else if (o.t === "status") {
+        await rpc(db, admin.id, "admin_set_user_status", { p_user_id: users[o.u].id,
+          p_status: o.active ? "ACTIVE" : "DISABLED", p_reason: "prop" });
       }
       posted++;
     } catch (e) {
-      // Lỗi nghiệp vụ hợp lệ (NO_ACTIVE_MEMBERS, PAYER_NOT_MEMBER, ALREADY_REVERSED, MEMBERSHIP_OVERLAP, tổng ≤ 0...)
+      // Lỗi nghiệp vụ hợp lệ (PAYER_NOT_MEMBER = người mua hộ đang bị khóa, ALREADY_REVERSED, tổng ≤ 0...).
+      // Không thể NO_ACTIVE_MEMBERS vì admin luôn ACTIVE.
       const msg = (e as Error).message;
-      expect(msg).toMatch(/^(NO_ACTIVE_MEMBERS|PAYER_NOT_MEMBER|ALREADY_REVERSED|MEMBERSHIP_OVERLAP|INVALID_INPUT)/);
+      expect(msg).toMatch(/^(PAYER_NOT_MEMBER|ALREADY_REVERSED|INVALID_INPUT)/);
     }
     const s = await balances(db);
     expect(s.member).toBe(s.cash);

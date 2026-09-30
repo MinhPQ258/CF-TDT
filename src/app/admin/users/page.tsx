@@ -20,7 +20,7 @@ export default async function UsersPage() {
   const authById = new Map(auth.users.map((a) => [a.id, a]));
   return (
     <>
-      <PageHeader title="Tài khoản" subtitle={`Đăng nhập bằng tên đăng nhập. Tài khoản mới và tài khoản được đặt lại dùng mật khẩu mặc định ${serverEnv.defaultPassword()}.`} />
+      <PageHeader back="/settings" backLabel="Quay lại Cài đặt" backMobileOnly title="Tài khoản" subtitle={`Đăng nhập bằng tên đăng nhập. Tài khoản mới và tài khoản được đặt lại dùng mật khẩu mặc định ${serverEnv.defaultPassword()}.`} />
       {auth.error && (
         <p className="mb-4 rounded-lg bg-warn-soft p-3 text-sm">Không đọc được danh sách đăng nhập (mã {auth.error.code ?? auth.error.status ?? "?"}) — kiểm tra SUPABASE_SERVICE_ROLE_KEY.</p>
       )}
@@ -38,7 +38,6 @@ export default async function UsersPage() {
                       {u.role === "ADMIN" && <Badge tone="brand">Quản trị</Badge>}
                       {u.status === "DISABLED" ? <Badge tone="danger">Đã khóa</Badge> : <Badge tone="ok">Hoạt động</Badge>}
                       {u.must_change_password && serverEnv.forcePasswordChange() && <Badge tone="warn">Chờ đổi MK</Badge>}
-                      {u.current_membership ? <Badge>Quỹ từ {formatDate(u.current_membership.start_date)}</Badge> : <Badge>Không thuộc quỹ</Badge>}
                       {!auth.error && !a && <Badge tone="danger">Không có tài khoản đăng nhập</Badge>}
                       {a && !a.confirmed && <Badge tone="danger">Chưa kích hoạt</Badge>}
                       {a?.banned && <Badge tone="danger">Bị chặn đăng nhập</Badge>}

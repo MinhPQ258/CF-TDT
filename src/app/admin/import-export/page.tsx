@@ -23,7 +23,7 @@ export default async function ImportExportPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader title="Nhập / xuất Excel" subtitle="Import nguyên khối: một dòng lỗi thì không ghi dòng nào. Một file chỉ import được một lần." />
+      <PageHeader back="/settings" backLabel="Quay lại Cài đặt" backMobileOnly title="Nhập / xuất Excel" subtitle="Import nguyên khối: một dòng lỗi thì không ghi dòng nào. Một file chỉ import được một lần." />
 
       {job?.ok && <div className="mb-4"><JobPreview job={job.data} /></div>}
       {job && !job.ok && <p className="mb-4 text-danger">{job.error.message}</p>}

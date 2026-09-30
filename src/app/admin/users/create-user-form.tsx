@@ -30,7 +30,7 @@ export function CreateUserForm() {
           <option value="ADMIN">Quản trị</option>
         </Select>
       </Field>
-      <p className="text-sm text-muted">Mật khẩu mặc định sẽ hiện sau khi tạo. Tạo tài khoản không tự thêm vào quỹ — thêm ở trang Thành viên quỹ.</p>
+      <p className="text-sm text-muted">Mật khẩu mặc định sẽ hiện sau khi tạo. Mọi tài khoản đang hoạt động đều được chia đều chi phí quỹ.</p>
       <SubmitButton className="w-full" pendingText="Đang tạo…">Tạo tài khoản</SubmitButton>
     </form>
   );

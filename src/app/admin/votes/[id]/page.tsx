@@ -7,7 +7,8 @@ import type { VoteSessionDetail } from "@/lib/types";
 import { Alert, Card, LinkButton, Stat, Table } from "@/components/ui";
 import { VoteStateBadge } from "@/components/vote-bits";
 import { Countdown } from "@/components/vote-controls";
-import { CopyBrewList, OptionManager, SessionActions } from "./session-admin";
+import { BackButton } from "@/components/back-button";
+import { CopyBrewList } from "./session-admin";
 
 export const metadata: Metadata = { title: "Kết quả đợt pha" };
 
@@ -24,6 +25,8 @@ export default async function AdminVoteDetailPage({ params }: { params: Promise<
   return (
     <>
       <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-1">
+        <BackButton fallback="/admin/votes" label="Quay lại Đợt pha" />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{s.name} · {formatDate(s.service_date).slice(0, 5)}</h1>
@@ -35,7 +38,9 @@ export default async function AdminVoteDetailPage({ params }: { params: Promise<
             {s.planned_brew_at && <> · pha {formatTime(s.planned_brew_at)}</>}
           </p>
         </div>
+        </div>
         <div className="flex flex-wrap gap-2">
+          {live && <LinkButton href={`/admin/votes/${s.id}/edit`}>Chỉnh sửa</LinkButton>}
           <LinkButton href="/admin/votes">+ Đợt pha mới</LinkButton>
           <CopyBrewList s={s} />
         </div>
@@ -76,8 +81,6 @@ export default async function AdminVoteDetailPage({ params }: { params: Promise<
               <p className="text-sm">{notVoted.map((x) => x.display_name).join(" · ")}</p>
             </section>
           )}
-          {live && <SessionActions session={s} />}
-          {live && s.options_all && <OptionManager sessionId={s.id} options={s.options_all} />}
         </div>
 
         <Card title={`Chi tiết (${s.votes.length})`}>

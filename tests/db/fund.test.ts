@@ -49,14 +49,18 @@ async function assertInvariant() {
 beforeEach(async () => {
   db = await createDb();
   today = await vnToday(db);
-  // employee_code quyết định thứ tự nhận +1đ: A < B < C < Z(admin, không phải thành viên quỹ)
-  admin = await createUser(db, { code: "Z900", username: "admin", role: "ADMIN" });
+  // Mọi tài khoản ACTIVE (kể cả admin) đều được chia đều → admin chính là người thứ 3 (C003).
+  // employee_code quyết định thứ tự nhận +1đ: A < B < C.
   a = await createUser(db, { code: "A001", username: "anh" });
   b = await createUser(db, { code: "B002", username: "binh" });
-  c = await createUser(db, { code: "C003", username: "chi" });
-  const start = addDays(today, -30);
-  for (const u of [a, b, c]) await addMembership(db, u.id, start);
+  admin = await createUser(db, { code: "C003", username: "admin", role: "ADMIN" });
+  c = admin;
 });
+
+/** Khóa tài khoản trực tiếp (bỏ qua API) — tài khoản DISABLED không được chia. */
+async function disable(u: TestUser) {
+  await db.query(`update public.profiles set status = 'DISABLED' where id = $1`, [u.id]);
+}
 
 describe("chia đều", () => {
   test("100đ / 3 người → 34/33/33, người mã nhỏ nhận +1đ", async () => {
@@ -149,16 +153,12 @@ describe("phiếu mua ITEM/FEE/DISCOUNT", () => {
     await expectCode(pp([{ line_type: "ITEM", item_name: "x", line_amount_vnd: 10.5 }]), "INVALID_INPUT");
   });
 
-  test("người mua hộ không phải thành viên → PAYER_NOT_MEMBER", async () => {
+  test("người mua hộ bị khóa (không ACTIVE) → PAYER_NOT_MEMBER", async () => {
+    const d = await createUser(db, { code: "D004", username: "dung" });
+    await disable(d);
     await expectCode(rpc(db, admin.id, "preview_purchase", {
-      p_occurred_on: today, p_paid_by: "MEMBER", p_payer_user_id: admin.id,
+      p_occurred_on: today, p_paid_by: "MEMBER", p_payer_user_id: d.id,
       p_lines: [{ item_name: "x", line_amount_vnd: 1000 }] }), "PAYER_NOT_MEMBER");
-  });
-
-  test("không có thành viên → NO_ACTIVE_MEMBERS", async () => {
-    await expectCode(rpc(db, admin.id, "preview_purchase", {
-      p_occurred_on: addDays(today, -60), p_paid_by: "FUND", p_payer_user_id: null,
-      p_lines: [{ item_name: "x", line_amount_vnd: 1000 }] }), "NO_ACTIVE_MEMBERS");
   });
 
   test("ngày tương lai → FUTURE_DATE (mọi hàm post)", async () => {
@@ -170,42 +170,48 @@ describe("phiếu mua ITEM/FEE/DISCOUNT", () => {
       p_lines: [{ item_name: "x", line_amount_vnd: 1 }] }), "FUTURE_DATE");
   });
 
-  test("membership đổi giữa preview và xác nhận → MEMBERSHIP_CHANGED", async () => {
+  test("tài khoản bị khóa giữa preview và xác nhận → MEMBERSHIP_CHANGED", async () => {
     const lines = [{ item_name: "Hạt", line_amount_vnd: 90_000 }];
     const preview = await rpc(db, admin.id, "preview_purchase", { p_occurred_on: today, p_paid_by: "FUND", p_payer_user_id: null, p_lines: lines });
-    const d = await createUser(db, { code: "D004", username: "dung" });
-    await addMembership(db, d.id, addDays(today, -1));
+    await rpc(db, admin.id, "admin_set_user_status", { p_user_id: b.id, p_status: "DISABLED", p_reason: "nghỉ" });
     await expectCode(rpc(db, admin.id, "post_purchase", {
       p_idem_key: uuid(), p_occurred_on: today, p_paid_by: "FUND", p_payer_user_id: null, p_lines: lines,
       p_preview_hash: preview.preview_hash }), "MEMBERSHIP_CHANGED");
     expect((await balances(db)).cash).toBe(0);
   });
 
-  test("gift: preview_hash cũ → MEMBERSHIP_CHANGED", async () => {
+  test("gift: thêm tài khoản ACTIVE sau preview → preview_hash cũ → MEMBERSHIP_CHANGED", async () => {
     const p = await giftPreview(30_000, today);
-    const d = await createUser(db, { code: "D004", username: "dung" });
-    await addMembership(db, d.id, today);
+    await createUser(db, { code: "D004", username: "dung" });
     await expectCode(rpc(db, admin.id, "post_gift", { p_idem_key: uuid(), p_amount_vnd: 30_000, p_occurred_on: today,
       p_preview_hash: p.preview_hash }), "MEMBERSHIP_CHANGED");
   });
 });
 
-describe("membership theo ngày [start, end)", () => {
-  test("vào ngày D bị chia phiếu ngày D; rời ngày D không bị chia", async () => {
+describe("chia theo tài khoản ACTIVE lúc ghi", () => {
+  test("tài khoản DISABLED không bị chia; mở lại thì được chia; ngày phiếu không ảnh hưởng", async () => {
     const d = await createUser(db, { code: "D004", username: "dung" });
     const e = await createUser(db, { code: "E005", username: "emm" });
-    const day = addDays(today, -5);
-    await addMembership(db, d.id, day);                       // vào ngày D
-    await addMembership(db, e.id, addDays(today, -30), day);  // rời ngày D
-    await purchase([{ item_name: "x", line_amount_vnd: 40_000 }], { on: day });
-    expect(await balanceOf(db, d.id)).toBe(-10_000);
+    await rpc(db, admin.id, "admin_set_user_status", { p_user_id: e.id, p_status: "DISABLED", p_reason: "nghỉ" });
+    // phiếu ngày cũ vẫn chia cho mọi tài khoản ACTIVE hiện tại: a, b, admin(c), d
+    await purchase([{ item_name: "x", line_amount_vnd: 40_000 }], { on: addDays(today, -5) });
+    expect([await balanceOf(db, a.id), await balanceOf(db, b.id), await balanceOf(db, c.id), await balanceOf(db, d.id)])
+      .toEqual([-10_000, -10_000, -10_000, -10_000]);
     expect(await balanceOf(db, e.id)).toBe(0);
-    await purchase([{ item_name: "y", line_amount_vnd: 50_000 }], { on: addDays(day, -1) });
-    expect(await balanceOf(db, d.id)).toBe(-10_000);
-    expect(await balanceOf(db, e.id)).toBe(-12_500);
-  });
 
+    await rpc(db, admin.id, "admin_set_user_status", { p_user_id: e.id, p_status: "ACTIVE", p_reason: "quay lại" });
+    await rpc(db, admin.id, "admin_set_user_status", { p_user_id: d.id, p_status: "DISABLED", p_reason: "nghỉ" });
+    await purchase([{ item_name: "y", line_amount_vnd: 40_000 }]);
+    expect(await balanceOf(db, d.id)).toBe(-10_000); // phiếu cũ giữ nguyên, phiếu mới không chia cho d
+    expect(await balanceOf(db, e.id)).toBe(-10_000);
+    expect(await balanceOf(db, a.id)).toBe(-20_000);
+    await assertInvariant();
+  });
+});
+
+describe("admin_upsert_membership (dữ liệu cũ, không ảnh hưởng phân bổ)", () => {
   test("chồng khoảng → MEMBERSHIP_OVERLAP; sửa membership không đổi ledger cũ, báo số phiếu lệch", async () => {
+    for (const u of [a, b, c]) await addMembership(db, u.id, addDays(today, -30));
     await expectCode(rpc(db, admin.id, "admin_upsert_membership", {
       p_membership_id: null, p_user_id: a.id, p_start_date: today, p_end_date: null, p_reason: "thêm" }), "MEMBERSHIP_OVERLAP");
 
@@ -231,13 +237,13 @@ describe("membership theo ngày [start, end)", () => {
 });
 
 describe("đảo giao dịch", () => {
-  test("đảo giữ entry_type gốc, ngược dấu, không đọc membership hiện tại; đảo lại khôi phục", async () => {
+  test("đảo giữ entry_type gốc, ngược dấu, không đọc danh sách ACTIVE hiện tại; đảo lại khôi phục", async () => {
     const { result } = await purchase([{ item_name: "x", line_amount_vnd: 90_000 }], { paidBy: "MEMBER", payer: a });
     expect([await balanceOf(db, a.id), await balanceOf(db, b.id)]).toEqual([60_000, -30_000]);
 
-    // tập thành viên đổi sau phiếu
+    // tập tài khoản ACTIVE đổi sau phiếu: thêm d, khóa b
     const d = await createUser(db, { code: "D004", username: "dung" });
-    await addMembership(db, d.id, today);
+    await disable(b);
 
     const rev = await rpc(db, admin.id, "reverse_event", { p_event_id: result.event_id, p_reason: "nhập nhầm", p_idem_key: uuid() });
     expect([await balanceOf(db, a.id), await balanceOf(db, b.id), await balanceOf(db, d.id)]).toEqual([0, 0, 0]);
@@ -391,5 +397,37 @@ describe("thành viên xem quỹ và phiếu (6A)", () => {
     const ledger = await rpc(db, b.id, "my_ledger", {});
     expect(ledger.rows.map((r: any) => r.entry_type)).toEqual(["PURCHASE_SHARE", "DEPOSIT_CREDIT"]);
     expect(ledger.rows[0].purchase_id).toBe(list.rows[0].id);
+  });
+
+  test("fund_summary: đã đóng / quà / đã chi (tiền thực ra khỏi quỹ) + số tiền đóng từng người", async () => {
+    const d = await createUser(db, { code: "D004", username: "dung", name: "Dũng" });
+    const e = await createUser(db, { code: "E005", username: "emm" });
+    await deposit(a, 30_000);
+    await deposit(b, 20_000);
+    await deposit(d, 10_000);
+    await disable(d); // đã nghỉ nhưng từng đóng tiền → vẫn hiện trong people
+    await disable(e); // đã nghỉ, chưa từng đóng → không hiện
+    await purchase([{ item_name: "Hạt", line_amount_vnd: 9_000 }]);                                   // quỹ trả → tính vào đã chi
+    await purchase([{ item_name: "Sữa", line_amount_vnd: 6_000 }], { paidBy: "MEMBER", payer: a }); // mua hộ → KHÔNG tính
+    await rpc(db, admin.id, "post_reimbursement", { p_idem_key: uuid(), p_user_id: b.id, p_amount_vnd: 5_000, p_occurred_on: today });
+    await gift(3_000, today);
+
+    const s = await rpc(db, b.id, "fund_summary");
+    expect(s).toMatchObject({ deposits_vnd: 60_000, gifts_vnd: 3_000, spent_vnd: 14_000, cash_balance_vnd: 49_000 });
+    expect(s.deposits_vnd + s.gifts_vnd - s.spent_vnd).toBe(s.cash_balance_vnd);
+    expect(s.cash_balance_vnd).toBe((await balances(db)).cash);
+    expect(s.people.map((p: any) => [p.employee_code, p.deposited_vnd, p.is_me])).toEqual([
+      ["A001", 30_000, false], ["B002", 20_000, true], ["D004", 10_000, false], ["C003", 0, false],
+    ]);
+    expect(s.people.find((p: any) => p.user_id === d.id).display_name).toBe("Dũng");
+
+    // đảo một khoản nộp → deposits_vnd và deposited_vnd cùng giảm
+    const [{ id: depEvent }] = (await db.query<{ id: string }>(
+      `select id from fund_events where kind = 'DEPOSIT' and subject_user_id = $1`, [a.id])).rows;
+    await rpc(db, admin.id, "reverse_event", { p_event_id: depEvent, p_reason: "nhầm", p_idem_key: uuid() });
+    const s2 = await rpc(db, a.id, "fund_summary");
+    expect(s2.deposits_vnd).toBe(30_000);
+    expect(s2.deposits_vnd + s2.gifts_vnd - s2.spent_vnd).toBe(s2.cash_balance_vnd);
+    expect(s2.people.find((p: any) => p.user_id === a.id)).toMatchObject({ deposited_vnd: 0, is_me: true });
   });
 });

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import {
-  addDays, addMembership, createDb, createUser, expectCode, rpc, rpcService, uuid, vnToday, type Db, type TestUser,
+  addDays, createDb, createUser, expectCode, rpc, rpcService, uuid, vnToday, type Db, type TestUser,
 } from "./harness";
 
 let db: Db;
@@ -19,10 +19,10 @@ async function purchase(amount: number, paidBy: "FUND" | "MEMBER", payer: TestUs
 beforeEach(async () => {
   db = await createDb();
   today = await vnToday(db);
-  admin = await createUser(db, { code: "Z900", username: "admin", role: "ADMIN" });
-  a = await createUser(db, { code: "A001", username: "anh" });
+  // Mọi tài khoản ACTIVE (kể cả admin) đều được chia → admin chính là a; quỹ có 2 người a, b.
+  admin = await createUser(db, { code: "A001", username: "anh", role: "ADMIN" });
+  a = admin;
   b = await createUser(db, { code: "B002", username: "binh" });
-  for (const u of [a, b]) await addMembership(db, u.id, addDays(today, -30));
 });
 
 describe("dashboard (12A)", () => {
@@ -41,11 +41,9 @@ describe("dashboard (12A)", () => {
     expect(ov.owing).toEqual({ people: 1, total_vnd: 10_000 });
   });
 
-  test("rời quỹ chưa tất toán được gắn cờ", async () => {
+  test("tài khoản bị khóa chưa tất toán được gắn cờ", async () => {
     await purchase(10_000, "FUND", null, addDays(today, -2));
-    const [{ id }] = (await db.query<{ id: string }>(`select id from fund_memberships where user_id = $1`, [b.id])).rows;
-    await rpc(db, admin.id, "admin_upsert_membership", { p_membership_id: id, p_user_id: null,
-      p_start_date: addDays(today, -30), p_end_date: today, p_reason: "chuyển phòng" });
+    await rpc(db, admin.id, "admin_set_user_status", { p_user_id: b.id, p_status: "DISABLED", p_reason: "chuyển phòng" });
     const ov = await rpc(db, admin.id, "admin_overview", {});
     expect(ov.left_unsettled).toEqual([expect.objectContaining({ user_id: b.id, balance_vnd: -5_000 })]);
     const rows = await rpc(db, admin.id, "admin_member_balances", {});
@@ -68,7 +66,7 @@ describe("đối soát & xuất", () => {
     expect(r).toMatchObject({ ok: false, diff: 0, source: "cron" }); // quỹ âm → cảnh báo
     const alerts = await db.query(`select * from audit_events where action = 'reconcile.alert'`);
     expect(alerts.rows).toHaveLength(1);
-    await expectCode(rpc(db, a.id, "reconcile", {}), "INSUFFICIENT_PERMISSION");
+    await expectCode(rpc(db, b.id, "reconcile", {}), "INSUFFICIENT_PERMISSION");
     const h = await rpc(db, admin.id, "admin_health");
     expect(h.cash_negative).toBe(true);
     expect(h.last_runs).toHaveLength(1);
