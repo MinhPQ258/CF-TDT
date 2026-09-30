@@ -49,7 +49,11 @@ export function AppShell({ me, nav, children, area }: { me: Me; nav: NavItem[]; 
     <div className="lg:flex">
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
         <div className="border-b border-line p-4">
-          <Link href="/" className="text-lg font-bold text-brand">Coffee TDT</Link>
+          <Link href="/" className="flex items-center gap-2 text-lg font-bold text-brand">
+            {/* eslint-disable-next-line @next/next/no-img-element -- logo tĩnh */}
+            <img src="/logo.webp" alt="" width={40} height={40} className="size-10 rounded-full" />
+            The 12A Coffee
+          </Link>
           <p className="mt-1 truncate text-sm text-muted">{me.display_name}</p>
         </div>
         <nav className="flex-1 overflow-y-auto p-2" aria-label="Điều hướng chính">
@@ -70,7 +74,11 @@ export function AppShell({ me, nav, children, area }: { me: Me; nav: NavItem[]; 
       </aside>
 
       <header className="sticky top-0 z-20 flex min-h-14 items-center justify-between gap-2 border-b border-line bg-surface/95 px-4 py-2 backdrop-blur lg:hidden">
-        <Link href="/" className="font-bold text-brand">Coffee TDT</Link>
+        <Link href="/" className="flex items-center gap-2 font-bold text-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element -- logo tĩnh */}
+          <img src="/logo.webp" alt="" width={36} height={36} className="size-9 rounded-full" />
+          The 12A Coffee
+        </Link>
         <Link href="/settings" className="flex min-h-11 max-w-[12rem] items-center gap-2 rounded-lg px-2 text-sm hover:bg-brand-soft" aria-label="Cài đặt tài khoản">
           <span className="truncate">{me.display_name}</span>
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-soft font-bold text-brand" aria-hidden>

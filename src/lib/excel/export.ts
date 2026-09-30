@@ -33,7 +33,7 @@ function kindLabel(kind: string): string {
 
 export async function buildExport(d: ExportData): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Coffee TDT";
+  wb.creator = "The 12A Coffee";
   const o = d.overview;
 
   const t = sheet(wb, "Tong_quan", [{ header: "Chỉ tiêu", key: "k", width: 40 }, { header: "Giá trị", key: "v", width: 18, money: true }]);

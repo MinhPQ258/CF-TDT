@@ -6,7 +6,7 @@ import { IMPORT_SPECS, headerText } from "./spec";
 export async function buildTemplate(kind: ImportKind): Promise<Buffer> {
   const spec = IMPORT_SPECS[kind];
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Coffee TDT";
+  wb.creator = "The 12A Coffee";
   const ws = wb.addWorksheet(spec.sheet, { views: [{ state: "frozen", ySplit: 1 }] });
   ws.columns = spec.columns.map((c) => ({ header: headerText(c), key: c.key, width: c.width ?? 14 }));
   ws.getRow(1).font = { bold: true };

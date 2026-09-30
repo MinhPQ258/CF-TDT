@@ -6,7 +6,7 @@ import "@fontsource/be-vietnam-pro/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Coffee TDT", template: "%s · Coffee TDT" },
+  title: { default: "The 12A Coffee", template: "%s · The 12A Coffee" },
   description: "Vote pha cà phê chung và quỹ cà phê nội bộ",
   robots: { index: false, follow: false },
 };
