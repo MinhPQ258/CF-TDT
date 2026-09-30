@@ -1,86 +1,12 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
-import { loadRpc } from "@/lib/rpc";
-import { formatDateTime, formatTime } from "@/lib/dates";
-import type { HomeData, VoteSessionDetail } from "@/lib/types";
-import { EmptyState, LinkButton, cx } from "@/components/ui";
-import { VoteStateBadge } from "@/components/vote-bits";
-import { Countdown } from "@/components/vote-controls";
-import { VoteResult } from "@/components/vote-result";
-import { VoteForm } from "./vote-form";
+import { VoteHome } from "@/components/vote-home";
 
 export const metadata: Metadata = { title: "Pha cà phê" };
 
-/**
- * Home thành viên (mobile trước): đợt pha đang mở → tích chọn → Gửi → kết quả.
- * Đã vote rồi thì vào thẳng kết quả; ?edit=1 để sửa.
- */
+/** Home thành viên (mobile trước): đợt pha đang mở → tích chọn → Gửi → kết quả. */
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ s?: string; edit?: string }> }) {
   const me = await requireUser();
-  const { s: selected, edit } = await searchParams;
-  const home = await loadRpc<HomeData>("home");
-
-  if (home.sessions.length === 0) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-[22px] font-bold">Chào {me.display_name}</h1>
-        <EmptyState title="Chưa có đợt pha nào đang mở"
-          action={me.role === "ADMIN" ? <LinkButton href="/admin/votes" variant="primary">Tạo đợt pha</LinkButton> : undefined}>
-          {home.next ? <>Đợt kế tiếp: <strong>{home.next.name}</strong>, mở lúc {formatDateTime(home.next.opens_at)}.</> : "Quản trị sẽ mở đợt khi có kế hoạch pha."}
-        </EmptyState>
-        {home.last_closed && (
-          <Link href={`/votes/${home.last_closed.id}`} className="block rounded-xl border border-line bg-surface p-4 hover:border-brand">
-            <p className="text-sm text-muted">Đợt vừa chốt</p>
-            <p className="font-semibold">{home.last_closed.name} · {home.last_closed.yes_count} người · {home.last_closed.cups_total} cốc</p>
-            <p className="text-sm text-brand">Xem kết quả →</p>
-          </Link>
-        )}
-      </div>
-    );
-  }
-
-  const current = home.sessions.find((x) => x.id === selected) ?? home.sessions.find((x) => x.state === "OPEN") ?? home.sessions[0];
-  const showResult = Boolean(current.my_vote) && edit !== "1";
-  const detail = showResult ? await loadRpc<VoteSessionDetail>("vote_session_detail", { p_session_id: current.id }) : null;
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-4">
-      {home.sessions.length > 1 && (
-        <nav aria-label="Chọn đợt pha" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-          {home.sessions.map((x) => (
-            <Link key={x.id} href={`/?s=${x.id}`} aria-current={x.id === current.id ? "page" : undefined}
-              className={cx("flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm",
-                x.id === current.id ? "border-brand bg-brand-soft font-semibold text-brand" : "border-line bg-surface")}>
-              {x.name}{x.my_vote && <span aria-label="đã vote">✓</span>}
-            </Link>
-          ))}
-        </nav>
-      )}
-
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="truncate text-[22px] font-bold">{current.name}</h1>
-          <p className="text-sm text-muted">
-            {current.state === "UPCOMING" ? <>Mở lúc {formatTime(current.opens_at)} · </> : null}
-            Chốt {formatTime(current.closed_at)}
-            {current.planned_brew_at && <> · pha {formatTime(current.planned_brew_at)}</>}
-            {current.state === "OPEN" && <> · <Countdown to={current.closed_at} /></>}
-          </p>
-        </div>
-        <VoteStateBadge state={current.state} />
-      </div>
-
-      {current.state === "UPCOMING" ? (
-        <EmptyState title={`Đợt mở lúc ${formatTime(current.opens_at)}`}>
-          Kiểu pha: {current.options.styles.map((x) => x.label).join(", ")}
-          {current.options.addons.length > 0 && <> · Đồ đi kèm: {current.options.addons.map((x) => x.label).join(", ")}</>}
-        </EmptyState>
-      ) : detail ? (
-        <VoteResult s={detail} editHref={`/?s=${current.id}&edit=1`} />
-      ) : (
-        <VoteForm key={current.id} session={current} initial={current.my_vote ?? current.prefill} />
-      )}
-    </div>
-  );
+  const { s, edit } = await searchParams;
+  return <VoteHome me={me} base="/" selected={s} edit={edit} othersHref="/votes" />;
 }

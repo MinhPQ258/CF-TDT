@@ -5,7 +5,7 @@ import { Card, LinkButton } from "@/components/ui";
 import { WithdrawButton } from "@/components/withdraw-button";
 
 /** Kết quả đợt pha cho thành viên (Home sau khi gửi, và /votes/[id]) */
-export function VoteResult({ s, editHref }: { s: VoteSessionDetail; editHref?: string }) {
+export function VoteResult({ s, editHref, othersHref = "/votes" }: { s: VoteSessionDetail; editHref?: string; othersHref?: string }) {
   const mine = s.my_vote;
   const open = s.state === "OPEN";
   const maxCups = Math.max(1, ...s.by_style.map((x) => x.cups));
@@ -29,7 +29,7 @@ export function VoteResult({ s, editHref }: { s: VoteSessionDetail; editHref?: s
       {mine && open && editHref && (
         <div className="grid grid-cols-2 gap-2">
           <LinkButton href={editHref}>Sửa lựa chọn</LinkButton>
-          <WithdrawButton sessionId={s.id} />
+          <WithdrawButton sessionId={s.id} afterHref={editHref} />
         </div>
       )}
       {!mine && open && editHref && <LinkButton href={editHref} variant="primary" className="w-full">Vote đợt này</LinkButton>}
@@ -78,7 +78,7 @@ export function VoteResult({ s, editHref }: { s: VoteSessionDetail; editHref?: s
           ))}
         </ul>
       </details>
-      <p className="text-center text-sm"><Link href="/votes" className="inline-flex min-h-11 items-center text-brand underline">Các đợt khác</Link></p>
+      <p className="text-center text-sm"><Link href={othersHref} className="inline-flex min-h-11 items-center text-brand underline">Các đợt khác</Link></p>
     </div>
   );
 }

@@ -13,7 +13,11 @@ import { FormMessage } from "@/components/form";
  * Home — tích chọn đợt pha. Mobile: nút Gửi vote nằm trên thanh cố định ngay trên bottom nav (luôn trong 667px).
  * Desktop: thanh nằm cuối form.
  */
-export function VoteForm({ session, initial }: { session: VoteSession; initial: MyVote | VotePrefill | null }) {
+export function VoteForm({ session, initial, doneHref, loginNext }: {
+  session: VoteSession; initial: MyVote | VotePrefill | null;
+  /** chuyển tới sau khi gửi thành công (trang kết quả của đợt) */
+  doneHref: string; loginNext: string;
+}) {
   const router = useRouter();
   const styles = session.options.styles;
   const addons = session.options.addons;
@@ -51,7 +55,7 @@ export function VoteForm({ session, initial }: { session: VoteSession; initial: 
         cups: drink && session.allow_cups ? cups : null,
       });
       if (r.ok) {
-        router.replace(`/?s=${session.id}`);
+        router.replace(doneHref);
         router.refresh();
       } else {
         setState({ ...r, data: undefined });
@@ -95,7 +99,7 @@ export function VoteForm({ session, initial }: { session: VoteSession; initial: 
         "fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 space-y-2 border-t border-line bg-surface px-4 py-2.5",
         "lg:static lg:rounded-xl lg:border lg:p-4",
       )}>
-        <FormMessage state={state} loginNext={`/?s=${session.id}`} />
+        <FormMessage state={state} loginNext={loginNext} />
         <p className="truncate text-sm text-muted" aria-live="polite">{summary}</p>
         <Button type="button" onClick={submit} disabled={pending} aria-busy={pending} className="min-h-12 w-full text-[17px] font-semibold">
           {pending ? "Đang gửi…" : state.code === "NETWORK" ? "Gửi lại" : "Gửi vote"}

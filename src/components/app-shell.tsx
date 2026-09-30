@@ -12,7 +12,7 @@ export const MEMBER_NAV: NavItem[] = [
 
 export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/votes", label: "Đợt pha", icon: "cup" },
-  { href: "/admin/dashboard", label: "Tổng quan", icon: "chart" },
+  { href: "/admin/dashboard", label: "Tổng quan quỹ", icon: "chart" },
   { href: "/admin/purchases", label: "Mua đồ", icon: "receipt" },
   { href: "/admin/fund", label: "Sổ quỹ", icon: "wallet" },
   { href: "/admin/memberships", label: "Thành viên quỹ", icon: "users" },

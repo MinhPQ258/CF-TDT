@@ -68,7 +68,9 @@ export function CreateSessionForm({ today, templates }: { today: string; templat
   const [date, setDate] = useState(today);
   const [opens, setOpens] = useState(first ? vnHHmm(first.opens_at) : "07:30");
   const [cutoff, setCutoff] = useState(first ? vnHHmm(first.cutoff_at) : "09:00");
-  const [brew, setBrew] = useState(first ? vnHHmm(first.planned_brew_at) : "09:15");
+  // Giờ pha mặc định = giờ chốt; đi theo giờ chốt cho tới khi admin tự sửa ô giờ pha
+  const [brew, setBrew] = useState(first ? vnHHmm(first.cutoff_at) : "09:00");
+  const [brewTouched, setBrewTouched] = useState(false);
   const [styles, setStyles] = useState<string[]>(first ? first.options.styles.map((x) => x.label) : ["Phin", "Máy"]);
   const [addons, setAddons] = useState<string[]>(first ? first.options.addons.map((x) => x.label) : ["Sữa đặc", "Đường", "Đá"]);
   const [allowCups, setAllowCups] = useState(first?.allow_cups ?? true);
@@ -86,7 +88,8 @@ export function CreateSessionForm({ today, templates }: { today: string; templat
     setName(t.name);
     setOpens(vnHHmm(t.opens_at));
     setCutoff(vnHHmm(t.cutoff_at));
-    setBrew(vnHHmm(t.planned_brew_at));
+    setBrew(vnHHmm(t.cutoff_at));
+    setBrewTouched(false);
     setStyles(t.options.styles.map((x) => x.label));
     setAddons(t.options.addons.map((x) => x.label));
     setAllowCups(t.allow_cups);
@@ -99,7 +102,10 @@ export function CreateSessionForm({ today, templates }: { today: string; templat
         styles, addons, allow_cups: allowCups, publish, copy_from: null,
       });
       setState(r);
-      if (r.ok && r.data) router.push(`/admin/votes/${r.data.id}`);
+      if (r.ok && r.data) {
+        router.push(`/admin/votes?s=${r.data.id}`);
+        router.refresh();
+      }
     });
   }
 
@@ -131,10 +137,10 @@ export function CreateSessionForm({ today, templates }: { today: string; templat
               <Input id="v-open" type="time" value={opens} onChange={(e) => setOpens(e.target.value)} />
             </Field>
             <Field label="Chốt" htmlFor="v-cut" required error={state.fieldErrors?.cutoff_time}>
-              <Input id="v-cut" type="time" value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
+              <Input id="v-cut" type="time" value={cutoff} onChange={(e) => { setCutoff(e.target.value); if (!brewTouched) setBrew(e.target.value); }} />
             </Field>
             <Field label="Pha" htmlFor="v-brew">
-              <Input id="v-brew" type="time" value={brew} onChange={(e) => setBrew(e.target.value)} />
+              <Input id="v-brew" type="time" value={brew} onChange={(e) => { setBrew(e.target.value); setBrewTouched(true); }} />
             </Field>
           </div>
         </Card>
