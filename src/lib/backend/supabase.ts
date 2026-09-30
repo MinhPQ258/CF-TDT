@@ -51,9 +51,24 @@ export const supabaseBackend: Backend = {
     async updateUser(id, patch) {
       const { error } = await createAdminClient().auth.admin.updateUserById(id, {
         ...(patch.password ? { password: patch.password } : {}),
+        ...(patch.email ? { email: patch.email, email_confirm: true } : {}),
         ...(patch.banned === undefined ? {} : { ban_duration: patch.banned ? "876000h" : "none" }),
       });
       return { error: err(error) };
+    },
+    async listAuthUsers() {
+      const admin = createAdminClient();
+      const users: import("./types").AuthUserInfo[] = [];
+      for (let page = 1; page <= 20; page++) {
+        const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) return { users, error: err(error) };
+        for (const u of data.users) {
+          users.push({ id: u.id, email: u.email ?? null, confirmed: Boolean(u.email_confirmed_at),
+            banned: Boolean(u.banned_until && new Date(u.banned_until).getTime() > Date.now()), last_sign_in_at: u.last_sign_in_at ?? null });
+        }
+        if (data.users.length < 1000) break;
+      }
+      return { users, error: null };
     },
     async serviceRpc<T>(fn: string, args: Record<string, unknown>) {
       const { data, error } = await createAdminClient().schema("api").rpc(fn, args);

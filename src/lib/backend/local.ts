@@ -81,7 +81,14 @@ export const localBackend: Backend = {
       const db = await localDb();
       if (patch.password) await db.query(`update auth.local_credentials set password_hash = $2 where user_id = $1`, [id, hashPassword(patch.password)]);
       if (patch.banned !== undefined) await db.query(`update auth.local_credentials set banned = $2 where user_id = $1`, [id, patch.banned]);
+      if (patch.email) await db.query(`update auth.users set email = lower($2) where id = $1`, [id, patch.email]);
       return { error: null };
+    },
+    async listAuthUsers() {
+      const db = await localDb();
+      const r = await db.query<{ id: string; email: string; banned: boolean | null }>(
+        `select u.id, u.email, c.banned from auth.users u left join auth.local_credentials c on c.user_id = u.id`);
+      return { users: r.rows.map((x) => ({ id: x.id, email: x.email, confirmed: true, banned: Boolean(x.banned), last_sign_in_at: null })), error: null };
     },
     async serviceRpc<T>(fn: string, args: Record<string, unknown>) {
       return localRpc<T>({ role: "service_role" }, fn, args, await requestId());

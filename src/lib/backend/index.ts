@@ -1,7 +1,7 @@
 import "server-only";
 import type { Backend } from "./types";
 
-export type { Backend, BackendError, RpcResponse } from "./types";
+export type { AuthUserInfo, Backend, BackendError, RpcResponse } from "./types";
 
 /** COFFEE_BACKEND=local → PGlite trên máy (npm run dev:local); mặc định Supabase. */
 export function isLocalBackend(): boolean {

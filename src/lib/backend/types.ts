@@ -8,6 +8,15 @@ export interface BackendError {
   status?: number;
 }
 
+/** Thông tin tài khoản đăng nhập (Supabase Auth / local) — để đối chiếu với profile */
+export interface AuthUserInfo {
+  id: string;
+  email: string | null;
+  confirmed: boolean;
+  banned: boolean;
+  last_sign_in_at: string | null;
+}
+
 export interface RpcResponse<T> {
   data: T | null;
   error: BackendError | null;
@@ -26,7 +35,9 @@ export interface Backend {
   admin: {
     createUser(email: string, password: string, meta: Record<string, unknown>): Promise<{ id: string | null; error: BackendError | null }>;
     deleteUser(id: string): Promise<{ error: BackendError | null }>;
-    updateUser(id: string, patch: { password?: string; banned?: boolean }): Promise<{ error: BackendError | null }>;
+    /** email: đổi email đăng nhập (và xác nhận luôn) */
+    updateUser(id: string, patch: { password?: string; banned?: boolean; email?: string }): Promise<{ error: BackendError | null }>;
+    listAuthUsers(): Promise<{ users: AuthUserInfo[]; error: BackendError | null }>;
     /** Gọi với quyền service_role (cron đối soát) */
     serviceRpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<RpcResponse<T>>;
   };

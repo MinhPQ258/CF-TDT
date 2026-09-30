@@ -8,6 +8,8 @@ import { currentAdmin } from "@/lib/auth";
 import { backend } from "@/lib/backend";
 import { fail, ok, zodFieldErrors, type ActionState } from "@/lib/action";
 import { log } from "@/lib/log";
+import { usernameToEmail } from "@/lib/env";
+import type { AdminUser } from "@/lib/types";
 import { createAccount, createAccountSchema, generateTempPassword, type CreatedAccount } from "./service";
 
 const NO_PERMISSION = { code: "INSUFFICIENT_PERMISSION" as const, message: "Bạn không có quyền thực hiện thao tác này" };
@@ -65,8 +67,13 @@ export async function resetPasswordAction(_prev: ActionState, formData: FormData
   if (!(await currentAdmin())) return fail(NO_PERMISSION);
   const id = z.string().uuid().safeParse(formData.get("user_id"));
   if (!id.success) return fail("Tài khoản không hợp lệ");
+  // Lấy username từ DB (không tin client) để đưa email đăng nhập về đúng <username>@<APP_AUTH_EMAIL_DOMAIN>
+  const users = await callRpc<AdminUser[]>("admin_list_users");
+  if (!users.ok) return fail(users.error);
+  const target = users.data.find((u) => u.id === id.data);
+  if (!target) return fail("Không tìm thấy tài khoản");
   const temp = generateTempPassword();
-  const { error } = await (await backend()).admin.updateUser(id.data, { password: temp });
+  const { error } = await (await backend()).admin.updateUser(id.data, { password: temp, email: usernameToEmail(target.username) });
   if (error) {
     log("warn", { request_id: (await headers()).get("x-request-id"), action: "user.reset_password", code: error.code ?? "error", params: { user_id: id.data } });
     return fail("Không đặt lại được mật khẩu");
@@ -74,5 +81,5 @@ export async function resetPasswordAction(_prev: ActionState, formData: FormData
   const r = await callRpc("admin_mark_password_reset", { p_user_id: id.data });
   if (!r.ok) return fail(r.error);
   revalidatePath("/admin/users");
-  return ok({ temp_password: temp }, "Đã đặt mật khẩu tạm. Chỉ hiển thị một lần.");
+  return ok({ temp_password: temp }, `Đã đặt mật khẩu tạm cho ${target.username}. Chỉ hiển thị một lần.`);
 }
