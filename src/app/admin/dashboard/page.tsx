@@ -26,7 +26,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <PageHeader
         title="Tổng quan quỹ"
         subtitle={`Kỳ ${formatDate(ov.period.from)} – ${formatDate(ov.period.to)}`}
-        actions={<><LinkButton href="/admin/purchases/new" variant="primary">+ Phiếu mua</LinkButton><LinkButton href="/admin/fund?form=DEPOSIT">+ Tiền nộp</LinkButton></>}
+        actions={<><LinkButton href="/admin/fund?tab=buy" variant="primary">+ Mua sắm</LinkButton><LinkButton href="/admin/fund?tab=in">+ Tiền vào</LinkButton></>}
       />
       {(invariantBad || ov.cash_balance_vnd < 0) && (
         <div className="mb-4">

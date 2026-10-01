@@ -4,8 +4,8 @@ import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
-import { currentAdmin } from "@/lib/auth";
-import { isIsoDate } from "@/lib/dates";
+import { currentAdmin, currentAdminWith } from "@/lib/auth";
+import { isIsoDate, vnToday } from "@/lib/dates";
 import { parseVnd } from "@/lib/money";
 import { fail, ok, zodFieldErrors, type ActionState } from "@/lib/action";
 import type { EventResult, GiftPreview, PurchasePreview } from "@/lib/types";
@@ -209,4 +209,29 @@ export async function reconcileNowAction(): Promise<ActionState> {
   revalidatePath("/admin/health");
   revalidatePath("/admin/dashboard");
   return r.data.ok ? ok(r.data, "Đối soát khớp: Σ thành viên = Σ quỹ") : fail(`Đối soát phát hiện lệch ${r.data.diff} ₫ hoặc quỹ âm — xem chi tiết`);
+}
+
+const quickPurchaseSchema = z.object({
+  idem_key: z.string().uuid(),
+  amount_vnd: amount,
+  note: z.string().trim().min(1, "Ghi chú mua gì").max(200, "Tối đa 200 ký tự"),
+});
+
+/** Mua sắm nhanh: số tiền + ghi chú → phiếu mua 1 dòng, quỹ trả, ngày hôm nay; chia đều tự động (không xem trước) */
+export async function quickPurchaseAction(input: { idem_key: string; amount_vnd: string; note: string }): Promise<ActionState<EventResult>> {
+  if (!(await currentAdminWith("purchases.manage"))) return fail(NO_PERMISSION);
+  const parsed = quickPurchaseSchema.safeParse(input);
+  if (!parsed.success) return fail("Kiểm tra lại thông tin", zodFieldErrors(parsed.error.issues));
+  const v = parsed.data;
+  const today = vnToday();
+  const lines = [{ line_type: "ITEM", item_name: v.note, quantity: null, unit: null, line_amount_vnd: v.amount_vnd }];
+  const preview = await callRpc<PurchasePreview>("preview_purchase", { p_occurred_on: today, p_paid_by: "FUND", p_payer_user_id: null, p_lines: lines });
+  if (!preview.ok) return fail(preview.error);
+  const r = await callRpc<EventResult>("post_purchase", {
+    p_idem_key: v.idem_key, p_occurred_on: today, p_paid_by: "FUND", p_payer_user_id: null, p_lines: lines,
+    p_preview_hash: preview.data.preview_hash, p_shop: null, p_external_ref: null, p_notes: v.note,
+  });
+  if (!r.ok) return fail(r.error);
+  revalidateFund();
+  return ok(r.data, r.data.replayed ? "Khoản này đã được ghi trước đó (không ghi trùng)" : `Đã ghi mua sắm ${v.amount_vnd.toLocaleString("vi-VN")} ₫`);
 }
