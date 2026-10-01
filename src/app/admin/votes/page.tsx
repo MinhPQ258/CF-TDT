@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import { addDays, formatTime, vnToday } from "@/lib/dates";
 import type { VoteSession, VoteSessionDetail } from "@/lib/types";
@@ -19,7 +19,7 @@ type Tab = "overview" | "vote";
 
 /** Đợt pha (admin, web trước): tab Tổng quan (ai vote gì) và tab Vote (admin tự vote). */
 export default async function AdminVotesPage({ searchParams }: { searchParams: Promise<{ tab?: string; s?: string; edit?: string }> }) {
-  const me = await requireAdmin();
+  const me = await requirePermission("votes.manage");
   const sp = await searchParams;
   const tab: Tab = sp.tab === "vote" ? "vote" : "overview";
 

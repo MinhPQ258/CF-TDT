@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { callRpc } from "@/lib/rpc";
 import { formatDate, formatTime } from "@/lib/dates";
 import type { VoteSessionDetail } from "@/lib/types";
@@ -13,7 +13,7 @@ import { CopyBrewList } from "./session-admin";
 export const metadata: Metadata = { title: "Kết quả đợt pha" };
 
 export default async function AdminVoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requirePermission("votes.manage");
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const r = await callRpc<VoteSessionDetail>("vote_session_detail", { p_session_id: id });

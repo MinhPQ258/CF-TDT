@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { formatVnd } from "@/lib/money";
 import { ENTRY_TYPE_LABEL, EVENT_KIND_LABEL } from "@/lib/labels";
 import type { FundSummary, LedgerRow, MyBalance, Paged } from "@/lib/types";
+import { can } from "@/lib/permissions";
 import { Badge, Card, EmptyState, Money, PageHeader, Pagination, cx } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Quỹ" };
@@ -26,7 +27,7 @@ export default async function FundPage({ searchParams }: { searchParams: Promise
   return (
     <>
       <PageHeader title="Quỹ" subtitle={`Số liệu tính đến ${formatDate(fund.as_of)}`}
-        actions={me.role === "ADMIN" ? <Link href="/admin/dashboard" className="inline-flex min-h-11 items-center text-sm text-brand underline">Quản trị quỹ →</Link> : undefined} />
+        actions={can(me, "reports.view") ? <Link href="/admin/dashboard" className="inline-flex min-h-11 items-center text-sm text-brand underline">Quản trị quỹ →</Link> : undefined} />
 
       <dl className="grid grid-cols-3 overflow-hidden rounded-xl border border-line bg-surface text-center">
         <div className="border-r border-line px-2 py-3">

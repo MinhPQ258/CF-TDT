@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import type { AdminUser } from "@/lib/types";
 import { EmptyState, LinkButton, PageHeader } from "@/components/ui";
@@ -8,7 +8,7 @@ import { PurchaseWizard } from "./purchase-wizard";
 export const metadata: Metadata = { title: "Ghi phiếu mua" };
 
 export default async function NewPurchasePage() {
-  await requireAdmin();
+  await requirePermission("purchases.manage");
   const users = await loadRpc<AdminUser[]>("admin_list_users");
   const members = users.filter((u) => u.status === "ACTIVE");
   return (

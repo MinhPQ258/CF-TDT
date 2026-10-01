@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import { formatDateTime } from "@/lib/dates";
 import type { Health } from "@/lib/types";
@@ -10,7 +10,7 @@ import { ReconcileButton } from "./reconcile-button";
 export const metadata: Metadata = { title: "Sức khỏe sổ" };
 
 export default async function HealthPage() {
-  await requireAdmin();
+  await requirePermission("reports.view");
   const h = await loadRpc<Health>("admin_health");
   const healthy = h.diff_vnd === 0 && h.bad_events.length === 0 && !h.cash_negative;
 

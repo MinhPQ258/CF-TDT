@@ -8,6 +8,7 @@ import { serverEnv } from "@/lib/env";
 import { callRpc } from "@/lib/rpc";
 import { fail, zodFieldErrors, type ActionState } from "@/lib/action";
 import { log } from "@/lib/log";
+import { can } from "@/lib/permissions";
 import type { Me } from "@/lib/types";
 
 const loginSchema = z.object({
@@ -77,13 +78,14 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
     return fail(me.data ? "Tài khoản đã bị khóa, liên hệ quản trị" : "Tài khoản chưa được thiết lập, liên hệ quản trị");
   }
   log("info", { request_id: requestId, user_id: me.data.id, action: "auth.login", code: "OK" });
+  await callRpc("log_login"); // nhật ký hành động (tab Log); lỗi không chặn đăng nhập
   if (me.data.must_change_password) {
     if (serverEnv.forcePasswordChange()) redirect("/change-password");
     // Không bắt đổi mật khẩu: gỡ cờ cũ để các hàm api.* không chặn
     await be.admin.setMustChangePassword(me.data.id, false);
   }
   // Thành viên ưu tiên mobile → Home vote; admin ưu tiên web → Đợt pha & vote
-  redirect(next && safeNext(next) !== "/" ? safeNext(next) : me.data.role === "ADMIN" ? "/admin/votes" : "/");
+  redirect(next && safeNext(next) !== "/" ? safeNext(next) : can(me.data, "votes.manage") ? "/admin/votes" : "/");
 }
 
 export async function logoutAction() {
@@ -122,5 +124,5 @@ export async function changePasswordAction(_prev: ActionState, formData: FormDat
   }
   const done = await callRpc("complete_password_change");
   if (!done.ok) return fail(done.error);
-  redirect(me.data.role === "ADMIN" ? "/admin/votes" : "/");
+  redirect(can(me.data, "votes.manage") ? "/admin/votes" : "/");
 }

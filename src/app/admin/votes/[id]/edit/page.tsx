@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { callRpc } from "@/lib/rpc";
 import type { VoteSessionDetail } from "@/lib/types";
 import { Alert, PageHeader } from "@/components/ui";
@@ -17,7 +17,7 @@ const vnLocal = (iso: string) => {
 
 /** Chỉnh sửa đợt: cùng giao diện với màn Tạo đợt; bên dưới là Chốt sớm / Hủy đợt */
 export default async function EditVoteSessionPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requirePermission("votes.manage");
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const r = await callRpc<VoteSessionDetail>("vote_session_detail", { p_session_id: id });

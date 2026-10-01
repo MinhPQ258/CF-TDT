@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getMe } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Đăng nhập" };
@@ -14,7 +15,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { next, error } = await searchParams;
   // Phiên còn hiệu lực và có hồ sơ → vào thẳng app
   const me = await getMe();
-  if (me && me.status === "ACTIVE") redirect(me.role === "ADMIN" ? "/admin/votes" : "/");
+  if (me && me.status === "ACTIVE") redirect(can(me, "votes.manage") ? "/admin/votes" : "/");
   return (
     <>
       <h1 className="mb-4 text-xl font-semibold">Đăng nhập</h1>

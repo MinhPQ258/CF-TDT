@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminWith } from "@/lib/auth";
 import { backend } from "@/lib/backend";
 import { fail, ok, zodFieldErrors, type ActionState } from "@/lib/action";
 import { log } from "@/lib/log";
@@ -15,7 +15,7 @@ import { createAccount, createAccountSchema, type CreatedAccount } from "./servi
 const NO_PERMISSION = { code: "INSUFFICIENT_PERMISSION" as const, message: "Bạn không có quyền thực hiện thao tác này" };
 
 export async function createUserAction(_prev: ActionState, formData: FormData): Promise<ActionState<CreatedAccount>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("users.manage"))) return fail(NO_PERMISSION);
   const parsed = createAccountSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail("Kiểm tra lại thông tin tài khoản", zodFieldErrors(parsed.error.issues));
   const r = await createAccount(parsed.data);
@@ -32,7 +32,7 @@ const statusSchema = z.object({
 
 /** Khóa: cập nhật profile (DB, có audit) rồi ban trên Supabase Auth để chặn làm mới phiên. */
 export async function setUserStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("users.manage"))) return fail(NO_PERMISSION);
   const parsed = statusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail("Dữ liệu không hợp lệ", zodFieldErrors(parsed.error.issues));
   const { user_id, status } = parsed.data;
@@ -55,7 +55,7 @@ const roleSchema = z.object({
 });
 
 export async function setUserRoleAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("users.manage"))) return fail(NO_PERMISSION);
   const parsed = roleSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail("Nhập lý do", zodFieldErrors(parsed.error.issues));
   const r = await callRpc("admin_set_user_role", { p_user_id: parsed.data.user_id, p_role: parsed.data.role, p_reason: parsed.data.reason || "Đổi bởi quản trị" });
@@ -66,7 +66,7 @@ export async function setUserRoleAction(_prev: ActionState, formData: FormData):
 
 /** Đặt mật khẩu về mặc định (APP_RESET_PASSWORD, mặc định 123456) + bắt đổi khi đăng nhập */
 export async function resetPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState<{ temp_password: string }>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("users.manage"))) return fail(NO_PERMISSION);
   const id = z.string().uuid().safeParse(formData.get("user_id"));
   if (!id.success) return fail("Tài khoản không hợp lệ");
   const users = await callRpc<AdminUser[]>("admin_list_users");

@@ -8,6 +8,7 @@ import { Countdown } from "@/components/vote-controls";
 import { VoteResult } from "@/components/vote-result";
 import { VoteForm } from "@/components/vote-form";
 import { SessionSelect } from "@/components/session-select";
+import { can } from "@/lib/permissions";
 import { SessionList } from "@/components/session-list";
 
 /** Thêm/ghi đè query vào một đường dẫn gốc ("/" hoặc "/admin/votes?tab=vote") */
@@ -35,7 +36,7 @@ export async function VoteHome({ me, base, selected, edit, othersHref }: {
     return (
       <div className="space-y-4">
         <EmptyState title="Chưa có đợt pha nào đang mở"
-          action={me.role === "ADMIN" ? <LinkButton href="/admin/votes" variant="primary">Tạo đợt pha</LinkButton> : undefined}>
+          action={<LinkButton href={can(me, "votes.manage") ? "/admin/votes" : "/votes/new"} variant="primary">Tạo đợt pha</LinkButton>}>
           {home.next ? <>Đợt kế tiếp: <strong>{home.next.name}</strong>, mở lúc {formatDateTime(home.next.opens_at)}.</> : "Quản trị sẽ mở đợt khi có kế hoạch pha."}
         </EmptyState>
         <SessionList base={base} detailBase={detailBase} />

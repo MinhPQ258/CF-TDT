@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { logoutAction } from "@/features/auth/actions";
 import { Badge, Card, PageHeader } from "@/components/ui";
-import { ADMIN_NAV } from "@/components/app-shell";
+import { ADMIN_NAV, visibleNav } from "@/components/app-shell";
 import { AvatarUploader } from "@/components/avatar-uploader";
 
 export const metadata: Metadata = { title: "Cài đặt" };
@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const admin = me.role === "ADMIN";
   // Các mục đã có tab riêng (Vote, Quỹ, Mua đồ) không lặp lại ở đây
   const inTabs = new Set(["/admin/votes", "/admin/dashboard", "/admin/purchases"]);
-  const adminItems = ADMIN_NAV.filter((x) => !inTabs.has(x.href));
+  const adminItems = visibleNav(ADMIN_NAV, me).filter((x) => !inTabs.has(x.href));
   const row = "flex min-h-12 items-center justify-between gap-3 px-4 hover:bg-bg";
 
   return (

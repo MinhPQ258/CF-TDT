@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import { firstOfMonth, formatDate, formatDateTime, isIsoDate, vnToday } from "@/lib/dates";
 import type { MemberBalanceRow, Overview } from "@/lib/types";
@@ -10,7 +10,7 @@ import { PeriodFilter } from "@/components/period-filter";
 export const metadata: Metadata = { title: "Tổng quan" };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
-  await requireAdmin();
+  await requirePermission("reports.view");
   const sp = await searchParams;
   const today = vnToday();
   const from = isIsoDate(sp.from) ? sp.from : firstOfMonth(today);

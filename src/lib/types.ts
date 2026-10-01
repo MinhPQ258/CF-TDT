@@ -22,6 +22,32 @@ export interface Me {
   is_member_today: boolean;
   /** data URL ảnh đại diện (null = chưa có, hiện chữ cái đầu) */
   avatar: string | null;
+  /** quyền RBAC (mã trong src/lib/permissions.ts); rỗng = thành viên thường */
+  permissions: string[];
+}
+
+export interface RbacRole {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  is_system: boolean;
+  users: { id: string; display_name: string; username: string }[];
+}
+
+export interface AuditRow {
+  id: number;
+  occurred_at: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  reason: string | null;
+  actor: { id: string; display_name: string; username: string } | null;
+  target: { display_name: string; username: string } | null;
+  /** người liên quan trong giao dịch quỹ */
+  subject: string | null;
 }
 
 export type Breakdown = Record<EntryType, number>;
@@ -175,6 +201,7 @@ export interface AdminUser {
   must_change_password: boolean;
   created_at: string;
   balance_vnd: number;
+  avatar?: string | null;
   current_membership: { id: string; start_date: string; end_date: string | null } | null;
 }
 

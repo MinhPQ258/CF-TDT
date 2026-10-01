@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import type { VoteSession } from "@/lib/types";
 import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { can } from "@/lib/permissions";
 import { VoteStateBadge, VoteWhen } from "@/components/vote-bits";
 
 export const metadata: Metadata = { title: "Vote pha chung" };
@@ -20,7 +21,7 @@ export default async function VotesPage() {
       <h2 className="mb-2 text-lg font-semibold">Đang mở / sắp mở</h2>
       {open.length === 0 ? (
         <EmptyState title="Chưa có đợt vote nào đang mở">
-          {me.role === "ADMIN" ? <Link className="text-brand underline" href="/admin/votes">Tạo đợt vote</Link> : "Quản trị sẽ mở đợt khi có kế hoạch pha."}
+          {can(me, "votes.manage") ? <Link className="text-brand underline" href="/admin/votes">Tạo đợt vote</Link> : "Quản trị sẽ mở đợt khi có kế hoạch pha."}
         </EmptyState>
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">{open.map((s) => <SessionCard key={s.id} s={s} />)}</ul>

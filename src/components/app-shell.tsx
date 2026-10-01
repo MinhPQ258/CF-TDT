@@ -4,6 +4,12 @@ import type { Me } from "@/lib/types";
 import { BottomTabs, NavLinks, type NavItem, type TabItem } from "@/components/nav-links";
 import { logoutAction } from "@/features/auth/actions";
 import { Avatar } from "@/components/avatar";
+import { can, pagePerms } from "@/lib/permissions";
+
+/** Chỉ giữ các mục người dùng có quyền vào (mục không cần quyền riêng luôn hiện) */
+export function visibleNav(items: NavItem[], me: Me): NavItem[] {
+  return items.filter((x) => { const p = pagePerms(x.href); return !p || can(me, ...p); });
+}
 
 export const MEMBER_NAV: NavItem[] = [
   { href: "/", label: "Pha", icon: "cup" },
@@ -26,15 +32,17 @@ export const ADMIN_NAV: NavItem[] = [
 /** Thanh tab dưới (mobile) theo vai trò: Vote · Quỹ · ＋ · Mua đồ · Cài đặt */
 export function bottomTabs(me: Me): TabItem[] {
   const admin = me.role === "ADMIN";
+  const votesAdmin = can(me, "votes.manage");
+  const buyAdmin = can(me, "purchases.manage");
   return [
-    admin
+    votesAdmin
       ? { href: "/admin/votes", label: "Vote", icon: "cup", match: ["/admin/votes", "/votes", "/"] }
       : { href: "/", label: "Vote", icon: "cup", match: ["/", "/votes"] },
     admin
       ? { href: "/me", label: "Quỹ", icon: "wallet", match: ["/me", "/admin/dashboard", "/admin/fund"] }
       : { href: "/me", label: "Quỹ", icon: "wallet" },
     { href: "/votes/new", label: "Tạo đợt vote", icon: "plus", primary: true, match: ["/votes/new"] },
-    admin
+    buyAdmin
       ? { href: "/admin/purchases", label: "Mua đồ", icon: "receipt", match: ["/admin/purchases", "/purchases"] }
       : { href: "/purchases", label: "Mua đồ", icon: "receipt" },
     { href: "/settings", label: "Cài đặt", icon: "gear",
@@ -61,11 +69,11 @@ export function AppShell({ me, nav, children, area }: { me: Me; nav: NavItem[]; 
           </Link>
         </div>
         <nav className="flex-1 overflow-y-auto p-2" aria-label="Điều hướng chính">
-          <NavLinks items={nav} variant="side" />
+          <NavLinks items={visibleNav(nav, me)} variant="side" />
           {me.role === "ADMIN" && (
             <div className="mt-4 border-t border-line pt-2">
               <p className="px-3 py-1 text-xs font-semibold uppercase text-muted">{area === "admin" ? "Thành viên" : "Quản trị"}</p>
-              <NavLinks items={area === "admin" ? MEMBER_NAV : ADMIN_NAV.slice(0, 1)} variant="side" />
+              <NavLinks items={area === "admin" ? MEMBER_NAV : visibleNav(ADMIN_NAV, me).slice(0, 1)} variant="side" />
             </div>
           )}
         </nav>

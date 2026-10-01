@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui";
 import { ChangePasswordForm } from "./change-password-form";
 import { logoutAction } from "@/features/auth/actions";
 import { BackButton } from "@/components/back-button";
+import { can } from "@/lib/permissions";
 import { serverEnv } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Đổi mật khẩu" };
@@ -16,7 +17,7 @@ export default async function ChangePasswordPage() {
     <>
       <div className="mb-1 flex items-center gap-1">
         {!(me.must_change_password && serverEnv.forcePasswordChange()) && (
-          <BackButton fallback={me.role === "ADMIN" ? "/admin/votes" : "/"} />
+          <BackButton fallback={can(me, "votes.manage") ? "/admin/votes" : "/"} />
         )}
         <h1 className="text-xl font-semibold">Đổi mật khẩu</h1>
       </div>

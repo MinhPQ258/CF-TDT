@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { callRpc, loadRpc } from "@/lib/rpc";
 import { firstOfMonth, formatDateTime, vnToday } from "@/lib/dates";
 import { IMPORT_KIND_LABEL, IMPORT_STATUS_LABEL } from "@/lib/labels";
@@ -13,7 +13,7 @@ import { JobPreview } from "./job-preview";
 export const metadata: Metadata = { title: "Nhập / xuất Excel" };
 
 export default async function ImportExportPage({ searchParams }: { searchParams: Promise<{ job?: string }> }) {
-  await requireAdmin();
+  await requirePermission("excel.manage");
   const { job: jobId } = await searchParams;
   const today = vnToday();
   const [jobs, job] = await Promise.all([

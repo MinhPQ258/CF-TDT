@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminWith } from "@/lib/auth";
 import { fail, ok, type ActionState } from "@/lib/action";
 import { parseImportFile } from "@/lib/excel/parse";
 import { IMPORT_SPECS } from "@/lib/excel/spec";
@@ -20,7 +20,7 @@ export interface StageResult {
 
 /** Bước 1: đọc file (cấu trúc) → stage vào DB (kiểm tra nghiệp vụ từng dòng) */
 export async function stageImportAction(_prev: ActionState<StageResult>, formData: FormData): Promise<ActionState<StageResult>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("excel.manage"))) return fail(NO_PERMISSION);
   const kind = kindSchema.safeParse(formData.get("kind"));
   const file = formData.get("file");
   if (!kind.success) return fail("Chọn loại dữ liệu import", { kind: "Chọn loại" });
@@ -48,7 +48,7 @@ export interface CommitResult {
  * rồi import_commit ghi membership trong một transaction. Tạo tài khoản là idempotent theo username.
  */
 export async function commitImportAction(input: { job_id: string; preview_hash: string }): Promise<ActionState<CommitResult>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("excel.manage"))) return fail(NO_PERMISSION);
   const v = z.object({ job_id: z.string().uuid(), preview_hash: z.string().regex(/^[0-9a-f]{64}$/) }).safeParse(input);
   if (!v.success) return fail("Yêu cầu không hợp lệ");
 
@@ -82,7 +82,7 @@ export async function commitImportAction(input: { job_id: string; preview_hash: 
 }
 
 export async function discardImportAction(input: { job_id: string }): Promise<ActionState> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("excel.manage"))) return fail(NO_PERMISSION);
   const id = z.string().uuid().safeParse(input.job_id);
   if (!id.success) return fail("Yêu cầu không hợp lệ");
   const r = await callRpc("import_discard", { p_job_id: id.data });

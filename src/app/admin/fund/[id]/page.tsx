@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { callRpc } from "@/lib/rpc";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { ENTRY_TYPE_LABEL, EVENT_KIND_LABEL } from "@/lib/labels";
@@ -12,7 +12,7 @@ import { ReverseForm } from "./reverse-form";
 export const metadata: Metadata = { title: "Chi tiết giao dịch" };
 
 export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requirePermission("fund.manage", "purchases.manage", "reports.view");
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const r = await callRpc<FundEventDetail>("admin_event_detail", { p_event_id: id });

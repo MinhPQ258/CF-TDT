@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import { formatDate, isIsoDate } from "@/lib/dates";
 import { EVENT_KIND_LABEL } from "@/lib/labels";
@@ -20,7 +20,7 @@ const FORM_LABEL: Record<FormKind, string> = { DEPOSIT: "Nộp quỹ", GIFT: "Ti
 export default async function FundPage({ searchParams }: {
   searchParams: Promise<{ form?: string; from?: string; to?: string; kind?: string; page?: string }>;
 }) {
-  await requireAdmin();
+  await requirePermission("fund.manage");
   const sp = await searchParams;
   const form: FormKind = FORMS.includes(sp.form as FormKind) ? (sp.form as FormKind) : "DEPOSIT";
   const from = isIsoDate(sp.from) ? sp.from : "";

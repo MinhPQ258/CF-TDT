@@ -86,7 +86,7 @@ function toRpcError(e: unknown): RpcError {
 type Params = Record<string, unknown>;
 
 /** Tham số kiểu mảng Postgres (text[] / uuid[]); các mảng khác là jsonb. */
-const PG_ARRAY_PARAMS = new Set(["p_styles", "p_addons", "p_addon_ids"]);
+const PG_ARRAY_PARAMS = new Set(["p_styles", "p_addons", "p_addon_ids", "p_permissions", "p_role_ids"]);
 
 function pgArray(xs: unknown[]): string {
   return `{${xs.map((x) => `"${String(x).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",")}}`;

@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dates";
 import { ENTRY_TYPE_LABEL } from "@/lib/labels";
 import type { PurchaseDetail } from "@/lib/types";
 import { Alert, Card, Money, PageHeader } from "@/components/ui";
+import { can } from "@/lib/permissions";
 import { PurchaseLines, SplitExplanation } from "@/components/purchase-bits";
 
 export const metadata: Metadata = { title: "Chi tiết phiếu mua" };
@@ -24,7 +25,7 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
       <PageHeader
         title={p.shop ?? "Phiếu mua"}
         subtitle={`${formatDate(p.purchased_on)} · ${p.paid_by === "FUND" ? "Quỹ trả" : `${p.payer} mua hộ`}${p.external_ref ? ` · Mã ${p.external_ref}` : ""}`}
-        back={me.role === "ADMIN" ? "/admin/purchases" : "/purchases"} backLabel="Quay lại danh sách phiếu"
+        back={can(me, "purchases.manage") ? "/admin/purchases" : "/purchases"} backLabel="Quay lại danh sách phiếu"
       />
       {p.reversal && (
         <div className="mb-4">

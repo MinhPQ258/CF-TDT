@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { loadRpc } from "@/lib/rpc";
 import { formatDate } from "@/lib/dates";
 import type { Paged, PurchaseSummary } from "@/lib/types";
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Mua đồ" };
 const PAGE_SIZE = 30;
 
 export default async function AdminPurchasesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-  await requireAdmin();
+  await requirePermission("purchases.manage");
   const page = Math.max(1, Number((await searchParams).page) || 1);
   const list = await loadRpc<Paged<PurchaseSummary>>("list_purchases", { p_limit: PAGE_SIZE, p_offset: (page - 1) * PAGE_SIZE });
   return (
