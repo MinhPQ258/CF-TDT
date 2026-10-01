@@ -60,6 +60,8 @@ export async function GET() {
     "000014_proxy_vote": ["vote_people", { p_session_id: null }],
     "000015_update_vote_session": ["admin_update_vote_session", { p_session_id: null, p_name: null, p_service_date: null,
       p_opens_at: null, p_cutoff_at: null, p_allow_cups: null, p_styles: null, p_addons: null }],
+    "000017_avatar": ["set_my_avatar", { p_avatar: null }],
+    "000018_rbac": ["admin_list_roles", {}],
   };
   const migrations: Record<string, boolean | string> = {};
   if (apiExposed) {
@@ -71,7 +73,7 @@ export async function GET() {
       migrations[name] = code === "42501" ? true : code === "PGRST202" ? false : code;
     }));
     const missing = Object.entries(migrations).filter(([, v]) => v !== true).map(([k]) => k);
-    if (missing.length) problems.push(`DB thiếu migration: ${missing.join(", ")} — chạy supabase/deploy/upgrade_013_016.sql trong SQL Editor`);
+    if (missing.length) problems.push(`DB thiếu migration: ${missing.join(", ")} — chạy file upgrade tương ứng trong supabase/deploy/ (SQL Editor)`);
   }
   if (authOk && "body" in auth && auth.body?.mailer_autoconfirm === false) {
     problems.push("Confirm email đang bật: user tạo trong Dashboard phải tick Auto Confirm");
