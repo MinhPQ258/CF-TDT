@@ -180,7 +180,7 @@ export function VoteForm({ session, initial, doneHref, loginNext, people = [] }:
       )}
 
       <div className={cx(
-        "fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 space-y-2 border-t border-line bg-surface px-4 py-2.5",
+        "fixed inset-x-0 bottom-[calc(3.5rem+max(32px,env(safe-area-inset-bottom)))] z-10 space-y-2 border-t border-line bg-surface px-4 py-2.5",
         "lg:static lg:rounded-xl lg:border lg:p-4",
       )}>
         <FormMessage state={state} loginNext={loginNext} />

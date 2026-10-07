@@ -98,7 +98,7 @@ export function AppShell({ me, nav, children, area }: { me: Me; nav: NavItem[]; 
 
       <main className="pb-safe mx-auto w-full max-w-6xl flex-1 px-4 py-4 sm:px-6 lg:py-6 lg:pb-8">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Điều hướng nhanh">
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface pb-[max(32px,env(safe-area-inset-bottom))] lg:hidden" aria-label="Điều hướng nhanh">
         <BottomTabs items={bottomTabs(me)} />
       </nav>
     </div>

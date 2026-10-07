@@ -67,6 +67,8 @@ export function vnLocalInput(t: string | Date): string {
 const showDateTime = (v: string) => (v ? `${v.slice(11, 16)} ${v.slice(0, 10).split("-").reverse().join("/")}` : "hh:mm dd/mm/yyyy");
 
 const DEFAULT_NAME = "Pha cà phê";
+/** Tạm ẩn mục Đồ đi kèm (07/10): đợt mới không có đồ đi kèm; sửa đợt cũ giữ nguyên đồ đi kèm đang có. Bật lại: true */
+const SHOW_ADDONS = false;
 
 /** Ô giờ + ngày hiển thị "hh:mm dd/mm/yyyy"; bấm vào mở bộ chọn ngày giờ của trình duyệt */
 function DateTimeField({ id, value, min, onChange }: { id: string; value: string; min?: string; onChange: (v: string) => void }) {
@@ -105,7 +107,7 @@ export function CreateSessionForm({ doneBase, editing, doneHref }: {
   const [opens, setOpens] = useState(() => editing?.opens ?? vnLocalInput(new Date()));
   const [cutoff, setCutoff] = useState(() => editing?.cutoff ?? vnLocalInput(new Date(Date.now() + 60 * 60_000)));
   const [styles, setStyles] = useState<string[]>(editing?.styles ?? ["Espresso", "Latte"]);
-  const [addons, setAddons] = useState<string[]>(editing?.addons ?? ["Sữa đặc", "Đường", "Đá"]);
+  const [addons, setAddons] = useState<string[]>(editing?.addons ?? (SHOW_ADDONS ? ["Sữa đặc", "Đường", "Đá"] : []));
   const [allowCups, setAllowCups] = useState(editing?.allow_cups ?? true);
   const [state, setState] = useState<ActionState<VoteSession>>({});
   const [pending, start] = useTransition();
@@ -153,7 +155,7 @@ export function CreateSessionForm({ doneBase, editing, doneHref }: {
         <div className="grid gap-3 lg:grid-cols-2">
           <LabelList label="Kiểu pha" hint="Người dùng chọn 1" items={styles} onChange={setStyles} placeholder="VD: Bạc xỉu" max={10} chip />
           <div className="flex flex-col gap-3">
-            <LabelList label="Đồ đi kèm" hint="Người dùng chọn nhiều" items={addons} onChange={setAddons} placeholder="VD: Kem cheese" max={20} chip />
+            {SHOW_ADDONS && <LabelList label="Đồ đi kèm" hint="Người dùng chọn nhiều" items={addons} onChange={setAddons} placeholder="VD: Kem cheese" max={20} chip />}
             <label className="flex min-h-11 items-center gap-3 rounded-xl border border-line bg-surface px-4">
               <input type="checkbox" checked={allowCups} onChange={(e) => setAllowCups(e.target.checked)} className="size-5 accent-[#6f4428]" />
               Cho nhập số cốc (1–20)

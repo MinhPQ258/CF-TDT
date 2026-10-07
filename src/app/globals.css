@@ -43,7 +43,7 @@ body {
 
 /* Tránh bị thanh điều hướng dưới (mobile) che nội dung cuối */
 .pb-safe {
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(5rem + max(32px, env(safe-area-inset-bottom)));
 }
 
 dialog::backdrop {
