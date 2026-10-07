@@ -26,7 +26,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       <PageHeader
         title={`${EVENT_KIND_LABEL[e.kind]}${e.reverses_kind ? ` — ${EVENT_KIND_LABEL[e.reverses_kind]}` : ""}`}
         subtitle={`${formatDate(e.occurred_on)} · ghi bởi ${e.actor ?? "—"} lúc ${formatDateTime(e.created_at, true)}`}
-        back="/admin/fund" backLabel="Quay lại Sổ quỹ"
+        back="/me" backLabel="Quay lại Quỹ"
       />
       <div className="mb-4 flex flex-wrap gap-2">
         {e.status === "REVERSED" ? <Badge tone="warn">Đã đảo</Badge> : <Badge tone="ok">Đã ghi</Badge>}

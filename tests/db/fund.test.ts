@@ -431,3 +431,16 @@ describe("thành viên xem quỹ và phiếu (6A)", () => {
     expect(s2.people.find((p: any) => p.user_id === a.id)).toMatchObject({ deposited_vnd: 0, is_me: true });
   });
 });
+
+describe("fund_activity (màn Quỹ — Gần đây)", () => {
+  test("mọi người xem được; lọc tiền vào / ra; mới nhất trước", async () => {
+    await deposit(a, 30000);
+    await purchase([{ line_type: "ITEM", item_name: "Cà phê", line_amount_vnd: 9000 }]);
+    const all = await rpc(db, b.id, "fund_activity", {});
+    expect(all.total).toBe(2);
+    expect(all.rows[0].kind).toBe("PURCHASE_FUND");
+    expect((await rpc(db, b.id, "fund_activity", { p_dir: "IN" })).rows.map((r: any) => r.kind)).toEqual(["DEPOSIT"]);
+    expect((await rpc(db, b.id, "fund_activity", { p_dir: "OUT" })).rows.map((r: any) => r.kind)).toEqual(["PURCHASE_FUND"]);
+    await expectCode(rpc(db, b.id, "fund_activity", { p_dir: "x" }), "INVALID_INPUT");
+  });
+});

@@ -60,3 +60,12 @@ test("upgrade_018_rbac.sql: DB migration 17 → 18, chạy 2 lần; ADMIN cũ th
   await db.exec(sql);
   expect((await rpc(db, a.id, "me")).permissions).toEqual(["votes.manage"]);
 });
+
+test("upgrade_019_fund_activity.sql: DB migration 18 → 19, chạy 2 lần", async () => {
+  const db = await createDb({ upTo: "20260930000018_rbac.sql" });
+  const sql = readFileSync("supabase/deploy/upgrade_019_fund_activity.sql", "utf8");
+  await db.exec(sql);
+  await db.exec(sql);
+  const a = await createUser(db, { code: "NV001", username: "anh" });
+  expect((await rpc(db, a.id, "fund_activity")).total).toBe(0);
+});

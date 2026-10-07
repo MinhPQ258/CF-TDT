@@ -22,7 +22,6 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/votes", label: "Đợt pha", icon: "cup" },
   { href: "/admin/dashboard", label: "Tổng quan quỹ", icon: "chart" },
   { href: "/admin/purchases", label: "Mua đồ", icon: "receipt" },
-  { href: "/admin/fund", label: "Sổ quỹ", icon: "wallet" },
   { href: "/admin/users", label: "Quản trị người dùng", icon: "user" },
   { href: "/admin/reports", label: "Báo cáo", icon: "table" },
   { href: "/admin/import-export", label: "Excel", icon: "file" },
@@ -39,7 +38,7 @@ export function bottomTabs(me: Me): TabItem[] {
       ? { href: "/admin/votes", label: "Vote", icon: "cup", match: ["/admin/votes", "/votes", "/"] }
       : { href: "/", label: "Vote", icon: "cup", match: ["/", "/votes"] },
     admin
-      ? { href: "/me", label: "Quỹ", icon: "wallet", match: ["/me", "/admin/dashboard", "/admin/fund"] }
+      ? { href: "/me", label: "Quỹ", icon: "wallet", match: ["/me", "/fund", "/admin/dashboard", "/admin/fund"] }
       : { href: "/me", label: "Quỹ", icon: "wallet" },
     { href: "/votes/new", label: "Tạo đợt vote", icon: "plus", primary: true, match: ["/votes/new"] },
     buyAdmin

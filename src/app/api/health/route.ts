@@ -62,6 +62,7 @@ export async function GET() {
       p_opens_at: null, p_cutoff_at: null, p_allow_cups: null, p_styles: null, p_addons: null }],
     "000017_avatar": ["set_my_avatar", { p_avatar: null }],
     "000018_rbac": ["admin_list_roles", {}],
+    "000019_fund_activity": ["fund_activity", { p_dir: null, p_limit: 1, p_offset: 0 }],
   };
   const migrations: Record<string, boolean | string> = {};
   if (apiExposed) {
