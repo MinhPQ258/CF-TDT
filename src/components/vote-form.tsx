@@ -179,7 +179,7 @@ export function VoteForm({ session, initial, doneHref, loginNext, people = [] }:
         </section>
       )}
 
-      <div className={cx(
+      <div data-fixed-bar className={cx(
         "fixed inset-x-0 bottom-[calc(3.5rem+max(32px,env(safe-area-inset-bottom)))] z-10 space-y-2 border-t border-line bg-surface px-4 py-2.5",
         "lg:static lg:rounded-xl lg:border lg:p-4",
       )}>

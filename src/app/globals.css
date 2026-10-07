@@ -49,3 +49,8 @@ body {
 dialog::backdrop {
   background: rgb(0 0 0 / 0.4);
 }
+
+/* Nút ＋ nổi: ẩn khi màn có thanh hành động cố định phía dưới (Gửi vote, Lưu) để không đè */
+body:has([data-fixed-bar]) [data-fab] {
+  display: none;
+}

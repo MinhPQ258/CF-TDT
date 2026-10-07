@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cx } from "@/components/ui";
@@ -75,7 +76,7 @@ export interface TabItem extends NavItem {
   primary?: boolean;
 }
 
-/** Thanh tab dưới (mobile): 5 mục, mục giữa là nút tròn nổi bật */
+/** Thanh tab dưới (mobile): Vote · Quỹ · Cài đặt (nút ＋ là FloatingAction riêng) */
 export function BottomTabs({ items }: { items: TabItem[] }) {
   const pathname = usePathname();
   // Tab sáng = tab có tiền tố khớp dài nhất (vd /votes/new thuộc nút ＋, không thuộc Vote)
@@ -84,7 +85,7 @@ export function BottomTabs({ items }: { items: TabItem[] }) {
   const best = Math.max(...items.map(score));
   const active = (it: TabItem) => best >= 0 && score(it) === best;
   return (
-    <ul className="grid grid-cols-5 items-end">
+    <ul className="grid items-end" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((it) => {
         const on = active(it);
         if (it.primary) {
@@ -108,5 +109,29 @@ export function BottomTabs({ items }: { items: TabItem[] }) {
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * Nút ＋ nổi góc phải dưới (mobile), ngay trên thanh tab. Chỉ hiện khi đang ở đầu trang: cuộn xuống thì ẩn.
+ * Ẩn ở chính màn đích, và ở màn có thanh hành động cố định phía dưới ([data-fixed-bar]: Gửi vote, Lưu) — xem globals.css.
+ */
+export function FloatingAction({ href, label, icon }: { href: string; label: string; icon: IconName }) {
+  const pathname = usePathname();
+  const [atTop, setAtTop] = useState(true);
+  useEffect(() => {
+    const onScroll = () => setAtTop(window.scrollY <= 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [pathname]);
+  if (pathname === href || pathname.startsWith(`${href}/`)) return null;
+  return (
+    <Link href={href} aria-label={label} title={label} data-fab aria-hidden={!atTop} tabIndex={atTop ? undefined : -1}
+      className={cx("fixed right-4 z-30 flex size-14 items-center justify-center rounded-full bg-brand text-brand-ink shadow-lg ring-4 ring-surface/70 transition duration-200 hover:brightness-110 lg:hidden",
+        atTop ? "scale-100 opacity-100" : "pointer-events-none scale-75 opacity-0")}
+      style={{ bottom: "calc(3.5rem + max(32px, env(safe-area-inset-bottom)) + 16px)" }}>
+      <Icon name={icon} />
+    </Link>
   );
 }

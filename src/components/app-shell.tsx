@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Me } from "@/lib/types";
-import { BottomTabs, NavLinks, type NavItem, type TabItem } from "@/components/nav-links";
+import { BottomTabs, FloatingAction, NavLinks, type NavItem, type TabItem } from "@/components/nav-links";
 import { logoutAction } from "@/features/auth/actions";
 import { Avatar } from "@/components/avatar";
 import { can, pagePerms } from "@/lib/permissions";
@@ -28,22 +28,17 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/health", label: "Sức khỏe sổ", icon: "pulse" },
 ];
 
-/** Thanh tab dưới (mobile) theo vai trò: Vote · Quỹ · ＋ · Mua đồ · Cài đặt */
+/** Thanh tab dưới (mobile): Vote · Quỹ · Cài đặt. Mua sắm nằm trong tab Quỹ; ＋ Tạo đợt là nút nổi. */
 export function bottomTabs(me: Me): TabItem[] {
   const admin = me.role === "ADMIN";
   const votesAdmin = can(me, "votes.manage");
-  const buyAdmin = can(me, "purchases.manage");
   return [
     votesAdmin
       ? { href: "/admin/votes", label: "Vote", icon: "cup", match: ["/admin/votes", "/votes", "/"] }
       : { href: "/", label: "Vote", icon: "cup", match: ["/", "/votes"] },
     admin
-      ? { href: "/me", label: "Quỹ", icon: "wallet", match: ["/me", "/fund", "/admin/dashboard", "/admin/fund"] }
-      : { href: "/me", label: "Quỹ", icon: "wallet" },
-    { href: "/votes/new", label: "Tạo đợt vote", icon: "plus", primary: true, match: ["/votes/new"] },
-    buyAdmin
-      ? { href: "/admin/purchases", label: "Mua đồ", icon: "receipt", match: ["/admin/purchases", "/purchases"] }
-      : { href: "/purchases", label: "Mua đồ", icon: "receipt" },
+      ? { href: "/me", label: "Quỹ", icon: "wallet", match: ["/me", "/fund", "/purchases", "/admin/dashboard", "/admin/fund", "/admin/purchases"] }
+      : { href: "/me", label: "Quỹ", icon: "wallet", match: ["/me", "/fund", "/purchases"] },
     { href: "/settings", label: "Cài đặt", icon: "gear",
       match: ["/settings", "/change-password", "/admin/users", "/admin/reports", "/admin/import-export", "/admin/health"] },
   ];
@@ -101,6 +96,7 @@ export function AppShell({ me, nav, children, area }: { me: Me; nav: NavItem[]; 
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface pb-[max(32px,env(safe-area-inset-bottom))] lg:hidden" aria-label="Điều hướng nhanh">
         <BottomTabs items={bottomTabs(me)} />
       </nav>
+      <FloatingAction href="/votes/new" label="Tạo đợt vote" icon="plus" />
     </div>
   );
 }

@@ -125,7 +125,7 @@ export function DepositForm({ people, variant = "page" }: {
       </section>
 
       {variant === "page" ? (
-        <div className="fixed inset-x-0 bottom-[calc(3.5rem+max(32px,env(safe-area-inset-bottom)))] z-10 space-y-2.5 border-t border-line bg-surface px-4 py-3 lg:static lg:rounded-2xl lg:border lg:p-4">
+        <div data-fixed-bar className="fixed inset-x-0 bottom-[calc(3.5rem+max(32px,env(safe-area-inset-bottom)))] z-10 space-y-2.5 border-t border-line bg-surface px-4 py-3 lg:static lg:rounded-2xl lg:border lg:p-4">
           {footer}
         </div>
       ) : (
