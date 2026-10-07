@@ -73,7 +73,7 @@ export async function middleware(request: NextRequest) {
   if (!userId) return toLogin();
 
   const { data: me } = await supabase.schema("api").rpc("me");
-  const profile = me as { status: string; role: string; must_change_password: boolean } | null;
+  const profile = me as { status: string; role: string; must_change_password: boolean; permissions?: string[] } | null;
 
   if (!profile || profile.status === "DISABLED") {
     await supabase.auth.signOut();
@@ -86,7 +86,7 @@ export async function middleware(request: NextRequest) {
     return redirectTo("/change-password");
   }
 
-  if ((path.startsWith("/admin") || path.startsWith("/api/admin")) && profile.role !== "ADMIN") {
+  if ((path.startsWith("/admin") || path.startsWith("/api/admin")) && profile.role !== "ADMIN" && !(profile.permissions?.length)) {
     if (isApi) return NextResponse.json({ code: "INSUFFICIENT_PERMISSION" }, { status: 403 });
     const url = request.nextUrl.clone();
     url.pathname = "/403";

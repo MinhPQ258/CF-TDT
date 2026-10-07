@@ -1,3 +1,4 @@
+import { PERMISSION_LABEL } from "@/lib/permissions";
 // Mã lỗi ổn định từ hàm DB (RAISE ... MESSAGE='<CODE>') → thông báo tiếng Việt (DEV plan v2 §4-§5).
 
 export const ERROR_CODES = [
@@ -50,6 +51,9 @@ export function messageFor(code: ErrorCode, detail?: string): string {
   if (code === "VOTE_CLOSED" || code === "VOTE_NOT_OPEN") {
     const t = formatTimeDetail(detail);
     return t ? `${base} (${code === "VOTE_CLOSED" ? "chốt" : "mở"} lúc ${t})` : base;
+  }
+  if (code === "INSUFFICIENT_PERMISSION" && detail.startsWith("cần quyền")) {
+    return `${base} (${detail.replace(/[a-z]+\.[a-z]+/g, (p) => PERMISSION_LABEL[p] ?? p)})`;
   }
   if (code === "INVALID_INPUT" || code === "MEMBERSHIP_OVERLAP" || code === "DUPLICATE_REFERENCE") {
     return `${base}: ${detail}`;

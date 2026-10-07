@@ -23,27 +23,27 @@ export async function requireUser(): Promise<Me> {
 
 export async function requireAdmin(): Promise<Me> {
   const me = await requireUser();
-  if (me.role !== "ADMIN") redirect("/403");
+  if (me.role !== "ADMIN" && (me.permissions ?? []).length === 0) redirect("/403");
   return me;
 }
 
 /** Màn quản trị cần một trong các quyền RBAC (DB vẫn kiểm tra lại ở từng RPC) */
 export async function requirePermission(...perms: Permission[]): Promise<Me> {
-  const me = await requireAdmin();
+  const me = await requireUser();
   if (!can(me, ...perms)) redirect("/403");
   return me;
 }
 
 /** Cho Server Action: admin có một trong các quyền, ngược lại null */
 export async function currentAdminWith(...perms: Permission[]): Promise<Me | null> {
-  const me = await currentAdmin();
+  const me = await currentUser();
   return me && can(me, ...perms) ? me : null;
 }
 
 /** Cho Server Action: trả null thay vì redirect để action trả lỗi có cấu trúc. */
 export async function currentAdmin(): Promise<Me | null> {
   const me = await getMe();
-  if (!me || me.status !== "ACTIVE" || (me.must_change_password && serverEnv.forcePasswordChange()) || me.role !== "ADMIN") return null;
+  if (!me || me.status !== "ACTIVE" || (me.must_change_password && serverEnv.forcePasswordChange()) || (me.role !== "ADMIN" && (me.permissions ?? []).length === 0)) return null;
   return me;
 }
 

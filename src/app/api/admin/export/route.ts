@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminWith } from "@/lib/auth";
 import { callRpc } from "@/lib/rpc";
 import { isIsoDate } from "@/lib/dates";
 import { buildExport, type ExportData } from "@/lib/excel/export";
@@ -9,7 +9,7 @@ export const maxDuration = 60;
 
 /** Xuất Excel 6 sheet theo kỳ [from, to]. Giới hạn 12 tháng / 20.000 dòng (kiểm ở DB). */
 export async function GET(req: NextRequest) {
-  if (!(await currentAdmin())) return NextResponse.json({ code: "INSUFFICIENT_PERMISSION" }, { status: 403 });
+  if (!(await currentAdminWith("excel.manage"))) return NextResponse.json({ code: "INSUFFICIENT_PERMISSION" }, { status: 403 });
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");
   if (!isIsoDate(from) || !isIsoDate(to)) return NextResponse.json({ code: "INVALID_INPUT", message: "Kỳ không hợp lệ" }, { status: 400 });

@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
-import { currentAdmin, currentAdminWith } from "@/lib/auth";
+import { currentAdminWith } from "@/lib/auth";
 import { isIsoDate, vnToday } from "@/lib/dates";
 import { parseVnd } from "@/lib/money";
 import { fail, ok, zodFieldErrors, type ActionState } from "@/lib/action";
@@ -39,7 +39,7 @@ const personSchema = z.object({
 
 /** Tiền nộp / hoàn tiền (một người) */
 export async function postPersonMoneyAction(_prev: ActionState, formData: FormData): Promise<ActionState<EventResult>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("fund.manage"))) return fail(NO_PERMISSION);
   const parsed = personSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail("Kiểm tra lại thông tin", zodFieldErrors(parsed.error.issues));
   const v = parsed.data;
@@ -73,7 +73,7 @@ export interface BulkDepositResult { done: number; replayed: number; failed: { u
 export async function postBulkDepositAction(input: {
   idem_key: string; user_ids: string[]; amount_vnd: string; occurred_on: string; external_ref?: string; note?: string;
 }): Promise<ActionState<BulkDepositResult>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("fund.manage"))) return fail(NO_PERMISSION);
   const parsed = bulkDepositSchema.safeParse(input);
   if (!parsed.success) return fail("Kiểm tra lại thông tin", zodFieldErrors(parsed.error.issues));
   const v = parsed.data;
@@ -103,7 +103,7 @@ export async function postBulkDepositAction(input: {
 }
 
 export async function previewGiftAction(input: { amount_vnd: string; occurred_on: string }): Promise<ActionState<GiftPreview>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("fund.manage"))) return fail(NO_PERMISSION);
   const parsed = z.object({ amount_vnd: amount, occurred_on: date }).safeParse(input);
   if (!parsed.success) return fail("Kiểm tra lại thông tin", zodFieldErrors(parsed.error.issues));
   const r = await callRpc<GiftPreview>("preview_gift", { p_amount_vnd: parsed.data.amount_vnd, p_occurred_on: parsed.data.occurred_on });
@@ -121,7 +121,7 @@ const giftSchema = z.object({
 });
 
 export async function postGiftAction(input: Record<string, string>): Promise<ActionState<EventResult>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("fund.manage"))) return fail(NO_PERMISSION);
   const parsed = giftSchema.safeParse(input);
   if (!parsed.success) return fail("Kiểm tra lại thông tin", zodFieldErrors(parsed.error.issues));
   const v = parsed.data;
@@ -150,7 +150,7 @@ const purchaseBase = z.object({
 });
 
 export async function previewPurchaseAction(input: z.infer<typeof purchaseBase>): Promise<ActionState<PurchasePreview>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("purchases.manage"))) return fail(NO_PERMISSION);
   const parsed = purchaseBase.safeParse(input);
   if (!parsed.success) return fail("Kiểm tra lại phiếu", zodFieldErrors(parsed.error.issues));
   const v = parsed.data;
@@ -170,7 +170,7 @@ const purchaseSchema = purchaseBase.extend({
 });
 
 export async function postPurchaseAction(input: z.infer<typeof purchaseSchema>): Promise<ActionState<EventResult>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("purchases.manage"))) return fail(NO_PERMISSION);
   const parsed = purchaseSchema.safeParse(input);
   if (!parsed.success) return fail("Kiểm tra lại phiếu", zodFieldErrors(parsed.error.issues));
   const v = parsed.data;
@@ -191,7 +191,7 @@ const reverseSchema = z.object({
 });
 
 export async function reverseEventAction(_prev: ActionState, formData: FormData): Promise<ActionState<EventResult>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("fund.manage", "purchases.manage"))) return fail(NO_PERMISSION);
   const parsed = reverseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail("Nhập lý do đảo", zodFieldErrors(parsed.error.issues));
   const v = parsed.data;
@@ -203,7 +203,7 @@ export async function reverseEventAction(_prev: ActionState, formData: FormData)
 }
 
 export async function reconcileNowAction(): Promise<ActionState> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("reports.view"))) return fail(NO_PERMISSION);
   const r = await callRpc<{ ok: boolean; diff: number }>("reconcile", { p_source: "manual" });
   if (!r.ok) return fail(r.error);
   revalidatePath("/admin/health");

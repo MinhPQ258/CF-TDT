@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { callRpc } from "@/lib/rpc";
-import { currentAdmin, currentUser } from "@/lib/auth";
+import { currentAdminWith, currentUser } from "@/lib/auth";
 import { fail, ok, zodFieldErrors, type ActionState } from "@/lib/action";
 import { isIsoDate, vnLocalToIso } from "@/lib/dates";
 import type { VoteOptions, VoteSession } from "@/lib/types";
@@ -142,7 +142,7 @@ const sessionAction = z.object({
 });
 
 export async function manageVoteSessionAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("votes.manage"))) return fail(NO_PERMISSION);
   const parsed = sessionAction.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail("Thao tác không hợp lệ");
   const { session_id, op, reason } = parsed.data;
@@ -158,7 +158,7 @@ export async function manageVoteSessionAction(_prev: ActionState, formData: Form
 }
 
 export async function addVoteOptionAction(input: { session_id: string; kind: "STYLE" | "ADDON"; label: string }): Promise<ActionState<VoteOptions>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("votes.manage"))) return fail(NO_PERMISSION);
   const v = z.object({ session_id: z.string().uuid(), kind: z.enum(["STYLE", "ADDON"]), label: z.string().trim().min(1, "Nhập tên").max(40, "Tối đa 40 ký tự") }).safeParse(input);
   if (!v.success) return fail("Kiểm tra lại tên lựa chọn", zodFieldErrors(v.error.issues));
   const r = await callRpc<VoteOptions>("admin_add_vote_option", { p_session_id: v.data.session_id, p_kind: v.data.kind, p_label: v.data.label });
@@ -168,7 +168,7 @@ export async function addVoteOptionAction(input: { session_id: string; kind: "ST
 }
 
 export async function setVoteOptionHiddenAction(input: { session_id: string; option_id: string; hidden: boolean }): Promise<ActionState<VoteOptions>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("votes.manage"))) return fail(NO_PERMISSION);
   const v = z.object({ session_id: z.string().uuid(), option_id: z.string().uuid(), hidden: z.boolean() }).safeParse(input);
   if (!v.success) return fail("Yêu cầu không hợp lệ");
   const r = await callRpc<VoteOptions>("admin_set_vote_option_hidden", { p_option_id: v.data.option_id, p_hidden: v.data.hidden });
@@ -179,7 +179,7 @@ export async function setVoteOptionHiddenAction(input: { session_id: string; opt
 
 /** Chỉnh sửa đợt (admin): cùng dữ liệu với màn Tạo đợt */
 export async function updateVoteSessionAction(input: Omit<z.infer<typeof createSchema>, "publish" | "copy_from"> & { session_id: string }): Promise<ActionState<VoteSession>> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("votes.manage"))) return fail(NO_PERMISSION);
   const id = z.string().uuid().safeParse(input.session_id);
   if (!id.success) return fail("Đợt vote không hợp lệ");
   const parsed = createSchema.omit({ publish: true, copy_from: true }).safeParse(input);
@@ -200,7 +200,7 @@ export async function updateVoteSessionAction(input: Omit<z.infer<typeof createS
 }
 
 export async function setVoteCutoffAction(input: { session_id: string; service_date: string; cutoff_time: string }): Promise<ActionState> {
-  if (!(await currentAdmin())) return fail(NO_PERMISSION);
+  if (!(await currentAdminWith("votes.manage"))) return fail(NO_PERMISSION);
   const v = z.object({ session_id: z.string().uuid(), service_date: z.string().refine(isIsoDate), cutoff_time: hhmm }).safeParse(input);
   if (!v.success) return fail("Giờ chốt không hợp lệ", { cutoff_time: "Giờ dạng HH:mm" });
   const cutoff = vnLocalToIso(v.data.service_date, v.data.cutoff_time);
