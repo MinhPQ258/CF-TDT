@@ -69,3 +69,23 @@ test("upgrade_019_fund_activity.sql: DB migration 18 → 19, chạy 2 lần", as
   const a = await createUser(db, { code: "NV001", username: "anh" });
   expect((await rpc(db, a.id, "fund_activity")).total).toBe(0);
 });
+
+// Postgres < 18 (Supabase) chạy trigger HOÃN dưới vai trò authenticated lúc COMMIT → hàm trigger phải là security definer.
+// PGlite là Postgres 18 nên không tái hiện được lỗi; kiểm bằng catalog để chặn tái phạm.
+test("mọi trigger hoãn dùng hàm security definer (lỗi permission denied for schema private trên Supabase)", async () => {
+  const db = await createDb();
+  const r = await db.query<{ tgname: string; prosecdef: boolean }>(
+    `select t.tgname, p.prosecdef from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgdeferrable and not t.tgisinternal`);
+  expect(r.rows.length).toBeGreaterThan(0);
+  expect(r.rows.filter((x) => !x.prosecdef).map((x) => x.tgname)).toEqual([]);
+});
+
+test("upgrade_020: chạy 2 lần trên DB migration 19", async () => {
+  const db = await createDb({ upTo: "20261007000019_fund_activity.sql" });
+  const sql = readFileSync("supabase/deploy/upgrade_020_deferred_trigger_definer.sql", "utf8");
+  await db.exec(sql);
+  const res = await db.exec(sql);
+  const last = res[res.length - 1].rows as { la_definer: boolean }[];
+  expect(last.length).toBe(3);
+  expect(last.every((x) => x.la_definer)).toBe(true);
+});
