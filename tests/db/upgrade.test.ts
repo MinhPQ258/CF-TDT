@@ -102,3 +102,30 @@ test("upgrade_021_duty_wheel.sql: DB migration 20 → 21, chạy 2 lần; vai tr
   expect(s.can_manage).toBe(true);
   expect(s.members.length).toBe(1);
 });
+
+test("upgrade_022_duty_active.sql: DB migration 21 → 22, chạy 2 lần", async () => {
+  const db = await createDb({ upTo: "20261022000021_duty_wheel.sql" });
+  const admin = await createUser(db, { code: "NV001", username: "admin", role: "ADMIN" });
+  const sql = readFileSync("supabase/deploy/upgrade_022_duty_active.sql", "utf8");
+  await db.exec(sql);
+  await db.exec(sql);
+  const checks = await db.query<{ co: boolean }>(sql.slice(sql.lastIndexOf("select 'cột duty")));
+  expect(checks.rows.every((r) => r.co)).toBe(true);
+  expect((await rpc(db, admin.id, "admin_duty_reset"))[0].active).toBe(true);
+});
+
+// Supabase bật pg_safeupdate cho request qua API: DELETE / UPDATE không WHERE bị chặn (local không có → không tái hiện).
+test("không hàm api.* / private.* nào có DELETE hay UPDATE thiếu WHERE (pg_safeupdate trên Supabase)", async () => {
+  const db = await createDb();
+  const r = await db.query<{ fn: string; src: string }>(
+    `select p.oid::regprocedure::text fn, p.prosrc src from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('api', 'private')`);
+  const bad: string[] = [];
+  for (const { fn, src } of r.rows) {
+    // từng câu lệnh (tách theo ;), bỏ comment
+    for (const stmt of src.replace(/--[^\n]*/g, "").split(";")) {
+      const s = stmt.replace(/\s+/g, " ").trim().toLowerCase();
+      if (/^(delete from|update) /.test(s) && !/ where /.test(` ${s} `)) bad.push(`${fn}: ${s.slice(0, 80)}`);
+    }
+  }
+  expect(bad).toEqual([]);
+});

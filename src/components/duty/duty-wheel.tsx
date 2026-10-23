@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  addDutyMemberAction, deleteDutyMemberAction, renameDutyMemberAction, resetDutyMembersAction, spinDutyAction,
+  addDutyMemberAction, deleteDutyMemberAction, renameDutyMemberAction, resetDutyMembersAction, setDutyActiveAction, spinDutyAction,
 } from "@/features/duty/actions";
 import type { ActionState } from "@/lib/action";
 import type { DutyMember, DutySpinResult } from "@/lib/types";
@@ -17,11 +17,14 @@ const SIZE = 300;
 
 /**
  * Vòng quay trực nhật (chỉ người có quyền duty.manage). Server chọn người trúng; vòng quay xoay tới đúng ô đó.
- * "Xoá người sau khi có kết quả": server xoá người trúng; vòng quay cập nhật khi đóng kết quả.
+ * Danh sách có ô tích: tích = có trên vòng quay. "Xoá người khỏi vòng quay sau khi có kết quả": server bỏ tích người trúng;
+ * vòng quay cập nhật khi đóng kết quả.
  */
 export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) {
   const router = useRouter();
   const [members, setMembers] = useState(initialMembers);
+  // trong lúc quay / xem kết quả: vẽ đúng các ô server dùng để chọn
+  const [wheelOverride, setWheelOverride] = useState<DutyMember[] | null>(null);
   const [rot, setRot] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<DutySpinResult | null>(null);
@@ -35,9 +38,11 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  const n = members.length;
+  const wheel = wheelOverride ?? members.filter((m) => m.active !== false);
+  const colorOf = new Map(wheel.map((m, i) => [m.id, dutyColor(i)]));
+  const n = wheel.length;
   const seg = n ? 360 / n : 360;
-  const stops = n ? members.map((_, i) => `${dutyColor(i)} ${i * seg}deg ${(i + 1) * seg}deg`).join(", ") : "#e7e1db 0deg 360deg";
+  const stops = n ? wheel.map((_, i) => `${dutyColor(i)} ${i * seg}deg ${(i + 1) * seg}deg`).join(", ") : "#e7e1db 0deg 360deg";
   const font = n > 12 ? 11 : n > 8 ? 12 : 14;
 
   function spin() {
@@ -47,7 +52,7 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
       const r = await spinDutyAction(removeAfter);
       if (!r.ok || !r.data) { setState(r); return; }
       const res = r.data;
-      setMembers(res.members_before); // đúng thứ tự server dùng để chọn
+      setWheelOverride(res.members_before); // đúng các ô, đúng thứ tự server dùng để chọn
       const s = 360 / res.members_before.length;
       const mid = res.index * s + s / 2 + (Math.random() - 0.5) * s * 0.6;
       setRot((cur) => cur + 360 * 6 + (((360 - mid) - (cur % 360)) % 360 + 360) % 360);
@@ -63,6 +68,7 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
 
   function closeResult(again: boolean) {
     if (result) setMembers(result.members);
+    setWheelOverride(null);
     setShowResult(false);
     setResult(null);
     if (again) setTimeout(spin, 50);
@@ -86,7 +92,7 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
             className="relative rounded-full disabled:cursor-not-allowed" style={{ width: SIZE, height: SIZE }}>
             <span className="absolute inset-0 block overflow-hidden rounded-full shadow-[0_0_0_6px_#fff,0_6px_22px_rgba(31,26,23,0.18)]"
               style={{ background: `conic-gradient(${stops})`, transform: `rotate(${rot}deg)`, transition: `transform ${SPIN_MS}ms cubic-bezier(0.12, 0.7, 0.1, 1)` }}>
-              {members.map((m, i) => (
+              {wheel.map((m, i) => (
                 <span key={m.id} className="absolute flex items-center justify-end overflow-hidden whitespace-nowrap font-semibold"
                   style={{
                     left: SIZE / 2, top: SIZE / 2 - 10, width: SIZE / 2, height: 20, transformOrigin: "0 50%",
@@ -111,8 +117,8 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
       <label className="flex min-h-[52px] cursor-pointer items-center gap-3 rounded-2xl border border-line bg-surface px-3.5">
         <input type="checkbox" checked={removeAfter} onChange={(e) => setRemoveAfter(e.target.checked)} className="size-5 accent-[#6f4428]" />
         <span>
-          <span className="block font-semibold">Xoá người sau khi có kết quả</span>
-          <span className="block text-xs text-muted">Người đã trúng không quay lại lần sau</span>
+          <span className="block font-semibold">Xoá người khỏi vòng quay sau khi có kết quả</span>
+          <span className="block text-xs text-muted">Bỏ tích người đã trúng; tên vẫn giữ trong danh sách</span>
         </span>
       </label>
 
@@ -120,19 +126,23 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
 
       <section aria-labelledby="duty-list" className="space-y-2.5 rounded-2xl border border-line bg-surface px-3.5 pb-1.5 pt-3">
         <div className="flex items-center justify-between">
-          <h2 id="duty-list" className="font-semibold">Danh sách ({n})</h2>
+          <h2 id="duty-list" className="font-semibold" title="Số người đang trên vòng quay / tổng số trong danh sách">Danh sách ({members.filter((m) => m.active !== false).length}/{members.length})</h2>
           <button type="button" disabled={pending || spinning}
             onClick={() => { if (window.confirm("Nạp lại danh sách = mọi tài khoản đang hoạt động?")) run(resetDutyMembersAction()); }}
-            className="min-h-11 px-0.5 text-sm font-semibold text-brand">Nạp lại tất cả</button>
+            className="min-h-11 whitespace-nowrap px-0.5 text-sm font-semibold text-brand">Nạp lại tất cả</button>
         </div>
         <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) run(addDutyMemberAction(draft), () => setDraft("")); }}>
           <Input aria-label="Thêm người" placeholder="Thêm tên…" maxLength={60} value={draft} onChange={(e) => setDraft(e.target.value)} className="border-dashed" />
           <Button type="submit" variant="secondary" disabled={pending || !draft.trim()} aria-busy={pending}>+ Thêm</Button>
         </form>
         <ul>
-          {members.map((m, i) => (
+          {members.map((m) => (
             <li key={m.id} className="flex min-h-[52px] items-center gap-2.5 border-t border-line/70">
-              <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: dutyColor(i) }} />
+              <input type="checkbox" checked={m.active !== false} disabled={pending || spinning}
+                aria-label={`Hiện ${m.name} trên vòng quay`}
+                onChange={(e) => run(setDutyActiveAction(m.id, e.target.checked))}
+                className="size-5 shrink-0 accent-[#6f4428]" />
+              <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: colorOf.get(m.id) ?? "#d6ccc3" }} />
               {editing === m.id ? (
                 <form className="flex flex-1 gap-2" onSubmit={(e) => { e.preventDefault(); run(renameDutyMemberAction(m.id, editText), () => setEditing(null)); }}>
                   <Input aria-label="Sửa tên" autoFocus maxLength={60} value={editText} onChange={(e) => setEditText(e.target.value)} className="min-h-10 border-2 border-brand" />
@@ -140,7 +150,7 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
                 </form>
               ) : (
                 <>
-                  <span className="min-w-0 flex-1 truncate">{m.name}</span>
+                  <span className={m.active === false ? "min-w-0 flex-1 truncate text-muted" : "min-w-0 flex-1 truncate"}>{m.name}</span>
                   <button type="button" aria-label={`Sửa ${m.name}`} disabled={pending || spinning} onClick={() => { setEditing(m.id); setEditText(m.name); }}
                     className="flex size-10 items-center justify-center rounded-lg text-muted hover:bg-bg">
                     <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" /></svg>
@@ -165,7 +175,7 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
             </span>
             <p id="duty-result" className="text-sm text-muted">Người trực nhật hôm nay</p>
             <p className="text-[28px] font-bold leading-tight">{result.winner.name}</p>
-            {removeAfter && <p className="text-sm text-muted">Đã được xoá khỏi vòng quay.</p>}
+            {removeAfter && <p className="text-sm text-muted">Đã bỏ khỏi vòng quay (tên vẫn trong danh sách).</p>}
             <div className="mt-1 grid w-full grid-cols-2 gap-2.5">
               <Button type="button" variant="secondary" className="min-h-12" onClick={() => closeResult(true)}>Quay lại</Button>
               <Button type="button" className="min-h-12 font-bold" onClick={() => closeResult(false)} autoFocus>Xong</Button>

@@ -395,7 +395,8 @@ export interface FundSummary {
 }
 
 /** Trực nhật (vòng quay) */
-export interface DutyMember { id: string; name: string }
+/** active = được tích, có trên vòng quay */
+export interface DutyMember { id: string; name: string; active?: boolean }
 export interface DutyState {
   can_manage: boolean;
   /** chỉ trả về khi có quyền duty.manage */

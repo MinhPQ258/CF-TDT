@@ -29,15 +29,20 @@ describe("trực nhật — vòng quay", () => {
   test("quay: người trúng thuộc danh sách, index khớp; ghi lịch sử cho mọi người xem; xoá sau khi trúng", async () => {
     const r = await rpc(db, admin.id, "admin_duty_spin", { p_remove: true });
     expect(r.members_before[r.index].id).toBe(r.winner.id);
-    expect(r.members).toHaveLength(2);
-    expect(r.members.map((x: any) => x.id)).not.toContain(r.winner.id);
+    // xoá sau khi trúng = bỏ tích: vẫn trong danh sách, không còn trên vòng quay
+    expect(r.members).toHaveLength(3);
+    expect(r.members.find((x: any) => x.id === r.winner.id).active).toBe(false);
     const r2 = await rpc(db, admin.id, "admin_duty_spin", { p_remove: false });
-    expect(r2.members).toHaveLength(2);
+    expect(r2.members_before).toHaveLength(2);
+    expect(r2.members_before.map((x: any) => x.id)).not.toContain(r.winner.id);
     const h = await rpc(db, a.id, "duty_state");
     expect(h.total_spins).toBe(2);
     expect(h.history.map((x: any) => x.name)).toEqual([r2.winner.name, r.winner.name]);
-    await rpc(db, admin.id, "admin_duty_delete", { p_id: r2.members[0].id });
-    await expectCode(rpc(db, admin.id, "admin_duty_spin", { p_remove: false }), "INVALID_INPUT"); // còn 1 người
+    await rpc(db, admin.id, "admin_duty_set_active", { p_id: r2.members_before[0].id, p_active: false });
+    await expectCode(rpc(db, admin.id, "admin_duty_spin", { p_remove: false }), "INVALID_INPUT"); // còn 1 người được tích
+    const back = await rpc(db, admin.id, "admin_duty_set_active", { p_id: r.winner.id, p_active: true });
+    expect(back.filter((x: any) => x.active)).toHaveLength(2);
+    await expectCode(rpc(db, a.id, "admin_duty_set_active", { p_id: r.winner.id, p_active: false }), "INSUFFICIENT_PERMISSION");
   });
 
   test("thêm / sửa / xoá; không trùng tên; nạp lại = mọi tài khoản đang hoạt động", async () => {

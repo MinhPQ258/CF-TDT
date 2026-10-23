@@ -48,3 +48,10 @@ export async function deleteDutyMemberAction(id: string): Promise<ActionState<Du
 export async function resetDutyMembersAction(): Promise<ActionState<DutyMember[]>> {
   return listOp("admin_duty_reset", {});
 }
+
+/** Tích / bỏ tích: tích = có trên vòng quay */
+export async function setDutyActiveAction(id: string, active: boolean): Promise<ActionState<DutyMember[]>> {
+  const v = z.string().uuid().safeParse(id);
+  if (!v.success) return fail("Không hợp lệ");
+  return listOp("admin_duty_set_active", { p_id: v.data, p_active: Boolean(active) });
+}
