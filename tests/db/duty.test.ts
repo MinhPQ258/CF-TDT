@@ -66,6 +66,22 @@ describe("trực nhật — vòng quay", () => {
     expect(list.map((x: any) => x.name)).toEqual(["Quản trị", "Anh (NV002)", "Bình", "Anh (NV004)"]);
   });
 
+  test("reset lịch sử: người trong lịch sử trở lại vòng quay (tích lại / thêm lại nếu đã xoá), lịch sử trống", async () => {
+    const r1 = await rpc(db, admin.id, "admin_duty_spin", { p_remove: true }); // bỏ tích người trúng
+    const r2 = await rpc(db, admin.id, "admin_duty_spin", { p_remove: true });
+    await rpc(db, admin.id, "admin_duty_delete", { p_id: r2.winner.id });    // người thứ 2 bị xoá hẳn
+    const res = await rpc(db, admin.id, "admin_duty_reset_history");
+    expect(res).toMatchObject({ cleared: 2, returned: 2 });
+    expect(res.members).toHaveLength(3);
+    expect(res.members.every((m: any) => m.active)).toBe(true);
+    expect(res.members.map((m: any) => m.name)).toEqual(expect.arrayContaining([r1.winner.name, r2.winner.name]));
+    const s2 = await rpc(db, a.id, "duty_state");
+    expect(s2).toMatchObject({ total_spins: 0, history: [] });
+    await expectCode(rpc(db, a.id, "admin_duty_reset_history"), "INSUFFICIENT_PERMISSION");
+    const audit = await db.query<{ action: string }>(`select action from audit_events where action = 'duty.reset_history'`);
+    expect(audit.rows).toHaveLength(1);
+  });
+
   test("vai trò tự tạo có quyền Trực nhật thì quay được", async () => {
     const role = await rpc(db, admin.id, "admin_save_role", { p_role_id: null, p_name: "Trực nhật", p_description: null, p_permissions: ["duty.manage"] });
     await rpc(db, admin.id, "admin_set_user_roles", { p_user_id: b.id, p_role_ids: [role.id] });

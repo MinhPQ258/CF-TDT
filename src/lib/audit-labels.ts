@@ -40,6 +40,7 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   "export.xlsx": "Xuất Excel",
   "reconcile.alert": "Cảnh báo đối soát",
   "duty.spin": "Quay trực nhật",
+  "duty.reset_history": "Reset lịch sử trực nhật",
 };
 
 /** Bộ lọc loại hành động (tiền tố mã) */

@@ -55,3 +55,13 @@ export async function setDutyActiveAction(id: string, active: boolean): Promise<
   if (!v.success) return fail("Không hợp lệ");
   return listOp("admin_duty_set_active", { p_id: v.data, p_active: Boolean(active) });
 }
+
+/** Reset lịch sử quay: người trong lịch sử trở lại vòng quay, rồi xoá lịch sử (chỉ người có quyền Trực nhật) */
+export async function resetDutyHistoryAction(): Promise<ActionState<{ cleared: number; returned: number }>> {
+  if (!(await currentAdminWith("duty.manage"))) return fail(NO_PERMISSION);
+  const r = await callRpc<{ cleared: number; returned: number }>("admin_duty_reset_history");
+  if (!r.ok) return fail(r.error);
+  revalidatePath("/duty");
+  return ok({ cleared: r.data.cleared, returned: r.data.returned },
+    `Đã xoá ${r.data.cleared} lần quay, đưa ${r.data.returned} người trở lại vòng quay`);
+}

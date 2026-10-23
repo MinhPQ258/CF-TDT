@@ -129,3 +129,12 @@ test("không hàm api.* / private.* nào có DELETE hay UPDATE thiếu WHERE (pg
   }
   expect(bad).toEqual([]);
 });
+
+test("upgrade_023_duty_reset_history.sql: DB migration 22 → 23, chạy 2 lần", async () => {
+  const db = await createDb({ upTo: "20261023000022_duty_active.sql" });
+  const admin = await createUser(db, { code: "NV001", username: "admin", role: "ADMIN" });
+  const sql = readFileSync("supabase/deploy/upgrade_023_duty_reset_history.sql", "utf8");
+  await db.exec(sql);
+  await db.exec(sql);
+  expect((await rpc(db, admin.id, "admin_duty_reset_history")).cleared).toBe(0);
+});

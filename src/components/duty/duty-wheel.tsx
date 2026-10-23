@@ -37,6 +37,11 @@ export function DutyWheel({ initialMembers }: { initialMembers: DutyMember[] }) 
   const [pending, start] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // Danh sách mới từ server (vd. sau Reset lịch sử): nhận khi không đang quay / xem kết quả
+  useEffect(() => {
+    if (!spinning && !wheelOverride) setMembers(initialMembers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ đồng bộ khi server gửi danh sách mới
+  }, [initialMembers]);
 
   const wheel = wheelOverride ?? members.filter((m) => m.active !== false);
   const colorOf = new Map(wheel.map((m, i) => [m.id, dutyColor(i)]));

@@ -5,6 +5,7 @@ import type { DutyState } from "@/lib/types";
 import { PageHeader } from "@/components/ui";
 import { DutyWheel } from "@/components/duty/duty-wheel";
 import { dutyColor, dutyInk } from "@/components/duty/colors";
+import { ResetHistoryButton } from "@/components/duty/reset-history-button";
 
 export const metadata: Metadata = { title: "Trực nhật" };
 
@@ -43,7 +44,11 @@ export default async function DutyPage() {
       ) : null}
 
       <section aria-labelledby="duty-history" className="rounded-2xl border border-line bg-surface px-3.5 pb-1.5 pt-1">
-        <h2 id="duty-history" className="flex min-h-11 items-center font-semibold">Lịch sử quay ({s.total_spins})</h2>
+        <div className="flex flex-wrap items-center justify-between gap-x-2">
+          <h2 id="duty-history" className="flex min-h-11 items-center font-semibold">Lịch sử quay ({s.total_spins})</h2>
+          {/* chỉ người có quyền Trực nhật (Quản trị viên) thấy và bấm được */}
+          {s.can_manage && <ResetHistoryButton disabled={s.total_spins === 0} />}
+        </div>
         {s.history.length === 0 ? (
           <p className="pb-3 text-sm text-muted">Chưa có lần quay nào.</p>
         ) : (

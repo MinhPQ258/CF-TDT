@@ -65,6 +65,7 @@ export async function GET() {
     "000019_fund_activity": ["fund_activity", { p_dir: null, p_limit: 1, p_offset: 0 }],
     "000021_duty_wheel": ["duty_state", { p_limit: 1 }],
     "000022_duty_active": ["admin_duty_set_active", { p_id: null, p_active: null }],
+    "000023_duty_reset_history": ["admin_duty_reset_history", {}],
   };
   const migrations: Record<string, boolean | string> = {};
   if (apiExposed) {
