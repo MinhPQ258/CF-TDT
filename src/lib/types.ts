@@ -393,3 +393,20 @@ export interface FundSummary {
   spent_vnd: number;
   people: { user_id: string; display_name: string; employee_code: string; deposited_vnd: number; is_me: boolean }[];
 }
+
+/** Trực nhật (vòng quay) */
+export interface DutyMember { id: string; name: string }
+export interface DutyState {
+  can_manage: boolean;
+  /** chỉ trả về khi có quyền duty.manage */
+  members: DutyMember[] | null;
+  total_spins: number;
+  history: { id: number; name: string; spun_at: string }[];
+}
+export interface DutySpinResult {
+  winner: DutyMember;
+  /** vị trí người trúng trong members_before */
+  index: number;
+  members_before: DutyMember[];
+  members: DutyMember[];
+}

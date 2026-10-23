@@ -89,3 +89,16 @@ test("upgrade_020: chạy 2 lần trên DB migration 19", async () => {
   expect(last.length).toBe(3);
   expect(last.every((x) => x.la_definer)).toBe(true);
 });
+
+test("upgrade_021_duty_wheel.sql: DB migration 20 → 21, chạy 2 lần; vai trò hệ thống có duty.manage", async () => {
+  const db = await createDb({ upTo: "20261007000020_deferred_trigger_definer.sql" });
+  const admin = await createUser(db, { code: "NV001", username: "admin", role: "ADMIN" });
+  const sql = readFileSync("supabase/deploy/upgrade_021_duty_wheel.sql", "utf8");
+  await db.exec(sql);
+  await db.exec(sql);
+  const checks = await db.query<{ co: boolean }>(sql.slice(sql.lastIndexOf("select 'bảng duty")));
+  expect(checks.rows.every((r) => r.co)).toBe(true);
+  const s = await rpc(db, admin.id, "duty_state");
+  expect(s.can_manage).toBe(true);
+  expect(s.members.length).toBe(1);
+});

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cx } from "@/components/ui";
 
-export type IconName = "wallet" | "cup" | "receipt" | "chart" | "users" | "user" | "table" | "file" | "pulse" | "key" | "plus" | "gear";
+export type IconName = "wallet" | "cup" | "receipt" | "chart" | "users" | "user" | "table" | "file" | "pulse" | "key" | "plus" | "gear" | "broom";
 
 export interface NavItem {
   href: string;
@@ -14,6 +14,7 @@ export interface NavItem {
 }
 
 const PATHS: Record<IconName, string> = {
+  broom: "M20 3l-7.5 7.5M9.5 9.5l5 5M9.5 9.5 4 15c-.6.6-.6 1.4 0 2l3 3c.6.6 1.4.6 2 0l5.5-5.5M6.5 17.5 9 15M9.5 20l2.5-2.5",
   wallet: "M3 7h15a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7Zm0 0 2-3h11l2 3M16 13.5h2",
   cup: "M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6V8Zm13 1h1.5a2.5 2.5 0 0 1 0 5H17M8 3v2M12 3v2",
   receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2V3Zm3 5h6M9 12h6M9 16h3",
@@ -126,6 +127,8 @@ export function FloatingAction({ href, label, icon }: { href: string; label: str
     return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
   if (pathname === href || pathname.startsWith(`${href}/`)) return null;
+  // Trực nhật: nút ＋ đè lên ô thêm tên, và màn này không cần tạo đợt vote
+  if (pathname === "/duty") return null;
   return (
     <Link href={href} aria-label={label} title={label} data-fab aria-hidden={!atTop} tabIndex={atTop ? undefined : -1}
       className={cx("fixed right-4 z-30 flex size-14 items-center justify-center rounded-full bg-brand text-brand-ink shadow-lg ring-4 ring-surface/70 transition duration-200 hover:brightness-110 lg:hidden",

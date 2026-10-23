@@ -6,6 +6,7 @@ export const PERMISSIONS = [
   { code: "reports.view", label: "Báo cáo", hint: "Tổng quan quỹ, báo cáo theo kỳ, sức khỏe sổ" },
   { code: "excel.manage", label: "Excel", hint: "Nhập / xuất dữ liệu Excel" },
   { code: "users.manage", label: "Quản trị người dùng", hint: "Người dùng, vai trò, nhật ký" },
+  { code: "duty.manage", label: "Trực nhật", hint: "Quay vòng quay chọn người trực nhật, sửa danh sách" },
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number]["code"];

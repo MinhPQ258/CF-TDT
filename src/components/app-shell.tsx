@@ -16,6 +16,7 @@ export const MEMBER_NAV: NavItem[] = [
   { href: "/votes/new", label: "Tạo đợt pha", icon: "plus" },
   { href: "/me", label: "Quỹ", icon: "wallet" },
   { href: "/purchases", label: "Phiếu mua", icon: "receipt" },
+  { href: "/duty", label: "Trực nhật", icon: "broom" },
 ];
 
 export const ADMIN_NAV: NavItem[] = [
@@ -39,6 +40,7 @@ export function bottomTabs(me: Me): TabItem[] {
     admin
       ? { href: "/me", label: "Quỹ", icon: "wallet", match: ["/me", "/fund", "/purchases", "/admin/dashboard", "/admin/fund", "/admin/purchases"] }
       : { href: "/me", label: "Quỹ", icon: "wallet", match: ["/me", "/fund", "/purchases"] },
+    { href: "/duty", label: "Trực nhật", icon: "broom" },
     { href: "/settings", label: "Cài đặt", icon: "gear",
       match: ["/settings", "/change-password", "/admin/users", "/admin/reports", "/admin/import-export", "/admin/health"] },
   ];

@@ -27,7 +27,7 @@ describe("vai trò & quyền", () => {
     expect(roles).toHaveLength(1);
     expect(roles[0]).toMatchObject({ name: "Quản trị viên", is_system: true });
     expect(roles[0].users.map((u: any) => u.username)).toEqual(["admin"]);
-    expect((await rpc(db, admin.id, "me")).permissions).toHaveLength(6);
+    expect((await rpc(db, admin.id, "me")).permissions).toHaveLength(7);
     expect((await rpc(db, a.id, "me")).permissions).toEqual([]);
   });
 
